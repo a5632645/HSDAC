@@ -705,7 +705,7 @@
 /* USB Setup Request */
 typedef struct __attribute__((packed)) _USB_SETUP_REQ
 {
-    uint8_t  bRequestType;
+    uint8_t  bmRequestType;
     uint8_t  bRequest;
     uint16_t wValue;
     uint16_t wIndex;

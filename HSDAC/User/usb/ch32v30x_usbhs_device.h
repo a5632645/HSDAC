@@ -25,9 +25,6 @@ extern "C" {
 /*******************************************************************************/
 /* Macro Definition */
 
-/* General */
-#define pUSBHS_SetupReqPak            ((PUSB_SETUP_REQ)USBHS_EP0_Buf)
-
 #define DEF_UEP_IN                    0x80
 #define DEF_UEP_OUT                   0x00
 /* Endpoint Number */
@@ -81,65 +78,9 @@ extern "C" {
 #define TEST_PACKET     0x01
 #define TEST_J          0x02
 #define TEST_K          0x03
-/******************************************************************************/
-/* Variable Declaration */
 
-/* Ringbuffer define  */
-#define DEF_Ring_Buffer_Max_Blks      16
-#define DEF_RING_BUFFER_SIZE          (DEF_Ring_Buffer_Max_Blks*DEF_USBD_HS_PACK_SIZE)
-#define DEF_RING_BUFFER_REMINE        4
-#define DEF_RING_BUFFER_RESTART       12
-
-/* Ring Buffer typedef */
-typedef struct __attribute__((packed)) _RING_BUFF_COMM
-{
-    volatile uint8_t  LoadPtr;
-    volatile uint8_t  DealPtr;
-    volatile uint8_t  RemainPack;
-    volatile uint8_t  StopFlag;
-    volatile uint16_t PackLen[DEF_Ring_Buffer_Max_Blks];
-} RING_BUFF_COMM, *pRING_BUFF_COMM;
-
-/* Ringbuffer variables */
-extern RING_BUFF_COMM  RingBuffer_Comm;
-extern __attribute__ ((aligned(4))) uint8_t  Data_Buffer[ ];
-
-/* SetUp Request Values */
-extern const uint8_t *pUSBHS_Descr;
-
-/* Setup Request */
-extern volatile uint8_t  USBHS_SetupReqCode;
-extern volatile uint8_t  USBHS_SetupReqType;
-extern volatile uint16_t USBHS_SetupReqValue;
-extern volatile uint16_t USBHS_SetupReqIndex;
-extern volatile uint16_t USBHS_SetupReqLen;
-
-/* USB Device Status */
-extern volatile uint8_t  USBHS_DevConfig;
-extern volatile uint8_t  USBHS_DevAddr;
-extern volatile uint8_t  USBHS_DevSleepStatus;
-extern volatile uint8_t  USBHS_DevEnumStatus;
-
-/* Endpoint tx busy flag */
-extern volatile uint8_t  USBHS_Endp_Busy[ ];
-
-/* Endpoint Buffer */
-extern  __attribute__ ((aligned(4))) uint8_t USBHS_EP0_Buf[ ];
-extern __attribute__ ((aligned(4))) uint8_t USBHS_EP3_Rx_Buf[ ];
-extern __attribute__ ((aligned(4))) uint8_t USBHS_EP5_Rx_Buf[ ];
-extern __attribute__ ((aligned(4))) uint8_t USBHS_EP4_Tx_Buf[ ];
-extern __attribute__ ((aligned(4))) uint8_t USBHS_EP6_Tx_Buf[ ];
-
-/********************************************************************************/
-/* Function Declaration */
 extern void USBHS_RCC_Init( void );
-extern void USBHS_Device_Endp_Init ( void );
 extern void USBHS_Device_Init ( FunctionalState sta );
-extern void USBHS_Device_SetAddress( uint32_t address );
-extern void USBHS_IRQHandler( void );
-extern void USBHS_Sleep_WakeUp_Cfg( void );
-extern void MCU_Sleep_Wakeup_Operate( void );
-extern uint8_t USBHS_Endp_DataUp( uint8_t endp, uint8_t *pbuf, uint16_t len, uint8_t mod );
 
 #ifdef __cplusplus
 }
