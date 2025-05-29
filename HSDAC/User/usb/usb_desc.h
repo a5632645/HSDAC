@@ -17,10 +17,10 @@
 /******************************************************************************/
 /* global define */
 /* file version */
-#define DEF_FILE_VERSION 0x08
+#define DEF_FILE_VERSION 0x01
 /* usb device info define  */
 #define DEF_USB_VID 0x1A86
-#define DEF_USB_PID 0x0005
+#define DEF_USB_PID 0x0009
 /* USB device descriptor, device serial number£¨bcdDevice£© */
 #define DEF_IC_PRG_VER DEF_FILE_VERSION
 
@@ -38,14 +38,14 @@
 #define DEF_USBD_LS_PACK_SIZE 64 /* usb ls device max int pack size */
 
 /* HS end-point size */
-#define DEF_USB_EP1_HS_SIZE DEF_USBD_HS_PACK_SIZE
-#define DEF_USB_EP2_HS_SIZE DEF_USBD_HS_PACK_SIZE
-#define DEF_USB_EP3_HS_SIZE DEF_USBD_HS_ISO_PACK_SIZE
+#define DEF_USB_EP1_HS_SIZE DEF_USBD_HS_ISO_PACK_SIZE
+#define DEF_USB_EP2_HS_SIZE 512
+#define DEF_USB_EP3_HS_SIZE 64
 #define DEF_USB_EP4_HS_SIZE DEF_USBD_HS_PACK_SIZE
 #define DEF_USB_EP5_HS_SIZE DEF_USBD_HS_PACK_SIZE
 #define DEF_USB_EP6_HS_SIZE DEF_USBD_HS_PACK_SIZE
 /* FS end-point size */
-#define DEF_USB_EP1_FS_SIZE DEF_USBD_FS_PACK_SIZE
+#define DEF_USB_EP1_FS_SIZE DEF_USBD_FS_ISO_PACK_SIZE
 #define DEF_USB_EP2_FS_SIZE DEF_USBD_FS_PACK_SIZE
 #define DEF_USB_EP3_FS_SIZE DEF_USBD_FS_ISO_PACK_SIZE
 #define DEF_USB_EP4_FS_SIZE DEF_USBD_FS_PACK_SIZE

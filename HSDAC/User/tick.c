@@ -32,7 +32,7 @@ void Tick_Init(void) {
     NVIC_InitTypeDef nvic;
     nvic.NVIC_IRQChannel = TIM2_IRQn;
     nvic.NVIC_IRQChannelCmd = ENABLE;
-    nvic.NVIC_IRQChannelPreemptionPriority = 2;
+    nvic.NVIC_IRQChannelPreemptionPriority = 3;
     nvic.NVIC_IRQChannelSubPriority = 0;
     NVIC_Init(&nvic);
 

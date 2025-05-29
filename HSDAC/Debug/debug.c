@@ -11,6 +11,7 @@
 * microcontroller manufactured by Nanjing Qinheng Microelectronics.
 *******************************************************************************/
 #include "debug.h"
+#include "usb/ch32v30x_usbhs_device.h"
 
 static uint8_t  p_us = 0;
 static uint16_t p_ms = 0;
@@ -211,7 +212,7 @@ __attribute__((used)) int _write(int fd, char *buf, int size)
     } while (writeSize);
 
 
-#else
+#elif 0
     for(i = 0; i < size; i++)
     {
 #if(DEBUG == DEBUG_UART1)
@@ -225,8 +226,10 @@ __attribute__((used)) int _write(int fd, char *buf, int size)
         USART_SendData(USART3, *buf++);
 #endif
     }
-#endif
     return size;
+#else
+    return USBCDC_Write(buf, size);
+#endif
 }
 
 /*********************************************************************

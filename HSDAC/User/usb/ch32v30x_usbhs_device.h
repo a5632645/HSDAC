@@ -105,7 +105,7 @@ extern volatile uint8_t USBHS_Endp_Busy[];
 
 /* Endpoint Buffer */
 extern __attribute__ ((aligned (4))) uint8_t USBHS_EP0_Buf[];
-extern __attribute__ ((aligned (4))) uint8_t USBHS_EP3_Rx_Buf[];
+extern __attribute__ ((aligned (4))) uint8_t USBHS_EP1_Rx_Buf[];
 
 /********************************************************************************/
 /* Function Declaration */
@@ -117,6 +117,8 @@ extern void USBHS_IRQHandler (void);
 extern void USBHS_Sleep_WakeUp_Cfg (void);
 extern void MCU_Sleep_Wakeup_Operate (void);
 extern uint8_t USBHS_Endp_DataUp (uint8_t endp, uint8_t *pbuf, uint16_t len, uint8_t mod);
+
+extern uint32_t USBCDC_Write(const char* buf, uint32_t len);
 
 #ifdef __cplusplus
 }

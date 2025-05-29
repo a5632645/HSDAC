@@ -45,3 +45,18 @@ void            Codec_Write(I2CFuture_T* pstate);
 void            Codec_Read(I2CFuture_T* pstate);
 void            Codec_PollWrite(uint8_t reg, uint8_t val);
 uint8_t         Codec_PollRead(uint8_t reg);
+
+// clock sync
+void     Codec_ClockSync_Reset(void);
+uint32_t Codec_ClockSync_GetNumRead(void);
+void     Codec_SetResampleRatio(float ratio);
+void     Codec_Start(void);
+void     Codec_Stop(void);
+uint32_t Codec_GetDMASize(void);
+uint32_t Codec_GetDMAHalfSize(void);
+bool     Codec_IsDMAStart(void);
+void     Codec_WriteUACBuffer(const uint8_t* ptr, uint32_t len);
+uint32_t Codec_GetUACBufferLen(void);
+void     Codec_CheckBuffer(void);
+
+uint32_t Codec_GetDMALen(void);

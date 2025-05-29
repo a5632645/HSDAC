@@ -14,12 +14,11 @@ static void ES9018K_Init(void) {
 
     Codec_PollWrite(0, 0xf1);
     Codec_PollWrite(1, 0b10000000);
-    volatile uint8_t e = Codec_PollRead(64);
-    volatile uint32_t i = 0;
-    for (;;) {
-        ++i;
-    }
 }
+
+extern uint32_t num_usb;
+uint32_t usb_bck = 0;
+uint32_t dma_bck = 0;
 
 int main(void) {
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
@@ -27,9 +26,24 @@ int main(void) {
     Delay_Init();
     Tick_Init();
 
-    // ES9018K_Init();
+    ES9018K_Init();
     USBHS_RCC_Init();
     USBHS_Device_Init(ENABLE);
+
+    uint32_t i = 0;
+    uint32_t t = Tick_GetTick();
     for (;;) {
+        uint32_t ct = Tick_GetTick();
+        if ((ct - t) > 10) {
+            t = ct;
+
+            if (USBHS_DevEnumStatus) {
+                printf("%ld,", i++);
+                // fflush(stdout);
+            }
+            // usb_bck = num_usb * 4;
+            // num_usb = 0;
+            // dma_bck = Codec_GetDMALen();
+        }
     }
 }

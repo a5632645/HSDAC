@@ -10,47 +10,7 @@
  * microcontroller manufactured by Nanjing Qinheng Microelectronics.
  *******************************************************************************/
 #include "ch32v30x_usbhs_device.h"
-
-/* UAC1.0 Request Type */
-#define USB_UAC_REQ_TYPE_MASK           0x1F
-#define USB_UAC_REQ_TYPE_ID_INF         0x01
-#define USB_UAC_REQ_TYPE_ENDP           0x02
-
-/* UAC1.0 Endpoint Control Selectors */
-#define UAC_CS_SAMPLING_FREQ_CONTROL    0x01
-#define UAC_CS_PITCH_CONTROL            0x02
-
-/* UAC1.0 Class-Specific Requests */
-#define UAC_SET_CUR                     0x01
-#define UAC_GET_CUR                     0x81
-#define UAC_SET_MIN                     0x02
-#define UAC_GET_MIN                     0x82
-#define UAC_SET_MAX                     0x03
-#define UAC_GET_MAX                     0X83
-#define UAC_SET_RES                     0x04
-#define UAC_GET_RES                     0x84
-#define UAC_SET_MEM                     0x05
-#define UAC_GET_MEM                     0x85
-#define UAC_GET_STAT                    0xFF
-
-/* UAC1.0 Headphone Feature Unit Control Requests */
-#define UAC_CS_MUTE_CONTROL             0x01
-#define UAC_CS_VOLUME_CONTROL           0x02
-
-/* UAC1.0 Feature Unit Control Requests Define */
-#define UAC_FEATURE_VOLUME_MAX          0x7FFF
-#define UAC_FEATURE_VOLUME_MIN          0x8001
-#define UAC_FEATURE_VOLUME_RES          0x0001
-
-typedef struct {
-    struct
-    {
-        uint8_t mute;
-        int16_t volume_l;
-        int16_t volume_r;
-    } feature_unit;
-} uac_headphone_unit_t;
-static uac_headphone_unit_t uac_unit_;
+#include "codec.h"
 
 /******************************************************************************/
 /* Variable Definition */
@@ -87,10 +47,14 @@ volatile uint8_t USBHS_DevEnumStatus;
 
 /* Endpoint Buffer */
 __attribute__ ((aligned (4))) uint8_t USBHS_EP0_Buf[DEF_USBD_UEP0_SIZE];
-__attribute__ ((aligned (4))) uint8_t USBHS_EP3_Rx_Buf[DEF_USB_EP3_HS_SIZE];
+__attribute__ ((aligned (4))) uint8_t USBHS_EP1_Rx_Buf[DEF_USB_EP1_HS_SIZE];
+__attribute__ ((aligned (4))) uint8_t USBHS_EP3_Tx_Buf[DEF_USB_EP3_HS_SIZE];
+__attribute__ ((aligned (4))) uint8_t USBHS_EP2_Tx_Buf[DEF_USB_EP2_HS_SIZE];
+__attribute__ ((aligned (4))) uint8_t USBHS_EP2_Rx_Buf[DEF_USB_EP2_HS_SIZE];
 
 /* Endpoint tx busy flag */
 volatile uint8_t USBHS_Endp_Busy[DEF_UEP_NUM];
+volatile uint8_t curr_dma_block = 0;
 
 /******************************************************************************/
 /* Interrupt Service Routine Declaration*/
@@ -160,20 +124,31 @@ void USBHS_RCC_Init (void) {
  */
 void USBHS_Device_Endp_Init (void) {
 
-    USBHSD->ENDP_CONFIG = USBHS_UEP3_R_EN;
-    USBHSD->ENDP_TYPE = USBHS_UEP3_R_TYPE;
+    USBHSD->ENDP_CONFIG = USBHS_UEP1_R_EN | USBHS_UEP2_T_EN | USBHS_UEP3_T_EN | USBHS_UEP3_R_EN;
+    USBHSD->ENDP_TYPE = USBHS_UEP1_R_TYPE;
 
     USBHSD->UEP0_MAX_LEN = DEF_USBD_UEP0_SIZE;
+    USBHSD->UEP1_MAX_LEN = DEF_USB_EP1_HS_SIZE;
+    USBHSD->UEP2_MAX_LEN = DEF_USB_EP2_HS_SIZE;
     USBHSD->UEP3_MAX_LEN = DEF_USB_EP3_HS_SIZE;
 
     USBHSD->UEP0_DMA = (uint32_t)(uint8_t *)USBHS_EP0_Buf;
-    USBHSD->UEP3_RX_DMA = (uint32_t)(uint8_t *)USBHS_EP3_Rx_Buf;
+    USBHSD->UEP1_RX_DMA = (uint32_t)(uint8_t *)USBHS_EP1_Rx_Buf;
+    USBHSD->UEP2_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Tx_Buf;
+    USBHSD->UEP2_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Rx_Buf;
+    USBHSD->UEP3_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP3_Tx_Buf;
+
 
     USBHSD->UEP0_TX_LEN = 0;
     USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_RES_NAK;
     USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_RES_ACK;
 
-    USBHSD->UEP3_RX_CTRL = USBHS_UEP_R_RES_NAK;
+    USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
+
+    USBHSD->UEP2_TX_CTRL = USBHS_UEP_T_RES_NAK;
+    USBHSD->UEP2_RX_CTRL = USBHS_UEP_R_RES_ACK;
+
+    USBHSD->UEP3_TX_CTRL = USBHS_UEP_T_RES_NAK;
 
     /* Clear End-points Busy Status */
     for (uint8_t i = 0; i < DEF_UEP_NUM; i++) {
@@ -198,7 +173,14 @@ void USBHS_Device_Init (FunctionalState sta) {
         USBHSD->INT_EN = USBHS_UIE_SETUP_ACT | USBHS_UIE_TRANSFER | USBHS_UIE_DETECT | USBHS_UIE_SUSPEND;
         USBHS_Device_Endp_Init();
         USBHSD->CONTROL |= USBHS_UC_DEV_PU_EN;
-        NVIC_EnableIRQ (USBHS_IRQn);
+
+        NVIC_InitTypeDef nvic = {
+            .NVIC_IRQChannel = USBHS_IRQn,
+            .NVIC_IRQChannelCmd = ENABLE,
+            .NVIC_IRQChannelPreemptionPriority = 0,
+            .NVIC_IRQChannelSubPriority = 0
+        };
+        NVIC_Init(&nvic);
     } else {
         USBHSD->CONTROL = USBHS_UC_CLR_ALL | USBHS_UC_RESET_SIE;
         Delay_Us (10);
@@ -284,13 +266,7 @@ uint8_t USBHS_Endp_DataUp (uint8_t endp, uint8_t *pbuf, uint16_t len, uint8_t mo
     return 0;
 }
 
-static void Halt(void) {
-    volatile uint32_t i = 0;
-    for (;;) {
-        ++i;
-    }
-}
-#define errflag Halt(); _errflag
+#define errflag while(1) {}; _errflag
 #define notsupport _errflag = 0xff
 #define ssupport _errflag = 0
 
@@ -307,6 +283,10 @@ enum {
     UAC_CLOCK_SOURCE_CONTROL_SELECT_CLOCK_VALID,
 };
 
+static const uint8_t com_cfg[] = {
+    USB_DWORD(115200), 1, 0, 8, 1
+};
+
 static uint16_t len = 0;
 static uint32_t sample_rate = 48000;
 static uint8_t audio_stream_interface_work = 0;
@@ -319,7 +299,17 @@ static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
             errflag = 0xff;
             break;
         case UAC_CLASS_REQ_RECIVER_INTERFACE: {
-            if ((USBHS_SetupReqIndex & 0xff) == 0) {
+            if (USBHS_SetupReqCode == CDC_SET_LINE_CODING) {
+                ssupport;
+            }
+            else if (USBHS_SetupReqCode == CDC_SET_LINE_CTLSTE) {
+                ssupport;
+            }
+            else if (USBHS_SetupReqCode == CDC_GET_LINE_CODING) {
+                memcpy(USBHS_EP0_Buf, com_cfg, sizeof(com_cfg));
+                len = 7;
+            }
+            else if ((USBHS_SetupReqIndex & 0xff) == 0) {
                 // audio control
                 switch (USBHS_SetupReqIndex >> 8) {
                 case 0x3: { // clock source
@@ -334,7 +324,6 @@ static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
                             }
                             else {
                                 // set
-                                len = 4;
                                 ssupport;
                             }
                             break;
@@ -378,6 +367,7 @@ static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
             }
             else if ((USBHS_SetupReqIndex & 0xff) == 1) {
                 errflag = 0xff;
+                // ssupport;
             }
         }
             break;
@@ -397,7 +387,7 @@ static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
 }
 
 // uac setup,geted something and set
-static uint8_t USBHS_UAC_Out(uint8_t _errflag) {
+static uint8_t USBHS_UAC_RX(uint8_t _errflag) {
     switch (USBHS_SetupReqType & USB_REQ_TYP_MASK) {
     case USB_REQ_TYP_CLASS:
         switch (USBHS_SetupReqType & 0x1f) {
@@ -405,7 +395,16 @@ static uint8_t USBHS_UAC_Out(uint8_t _errflag) {
             errflag = 0xff;
             break;
         case UAC_CLASS_REQ_RECIVER_INTERFACE: {
-            if ((USBHS_SetupReqIndex & 0xff) == 0) {
+            if (USBHS_SetupReqCode == CDC_SET_LINE_CODING) {
+                ssupport;
+            }
+            else if (USBHS_SetupReqCode == CDC_SET_LINE_CTLSTE) {
+                ssupport;
+            }
+            else if (USBHS_SetupReqCode == CDC_GET_LINE_CODING) {
+                ssupport;
+            }
+            else if ((USBHS_SetupReqIndex & 0xff) == 0) {
                 // audio control
                 switch (USBHS_SetupReqIndex >> 8) {
                 case 0x3: { // clock source
@@ -474,6 +473,24 @@ static uint8_t USBHS_UAC_Out(uint8_t _errflag) {
     return _errflag;
 }
 
+static volatile uint32_t cdc_tx_len_ = 0;
+static volatile uint32_t cdc_tx_ptr_ = 0;
+static volatile bool cdc_tx_cplt = true;
+uint32_t USBCDC_Write(const char* buf, uint32_t len) {
+    cdc_tx_ptr_ = (uint32_t)buf;
+    cdc_tx_len_ = len;
+    cdc_tx_cplt = false;
+    uint32_t tx_len = len > DEF_USB_EP2_HS_SIZE ? DEF_USB_EP2_HS_SIZE : len;
+    cdc_tx_ptr_ += tx_len;
+    cdc_tx_len_ -= tx_len;
+    USBHSD->UEP2_TX_LEN = tx_len;
+    USBHSD->UEP2_TX_DMA = (uint32_t)buf;
+    USBHSD->UEP2_TX_CTRL &= ~USBHS_UEP_T_RES_MASK;
+    USBHSD->UEP2_TX_CTRL |= USBHS_UEP_T_RES_ACK;
+    while (!cdc_tx_cplt) {}
+    return len;
+}
+
 /*********************************************************************
  * @fn      USBHS_IRQHandler
  *
@@ -482,11 +499,12 @@ static uint8_t USBHS_UAC_Out(uint8_t _errflag) {
  * @return  none
  */
 void USBHS_IRQHandler (void) {
-    uint8_t intflag, intst, _errflag;
     len = 0;
-
-    intflag = USBHSD->INT_FG;
-    intst = USBHSD->INT_ST;
+    volatile int8_t intflag = USBHSD->INT_FG;
+    volatile int8_t intst = USBHSD->INT_ST;
+    volatile uint8_t _errflag = 0;
+    uint8_t has_data_copy = 0;
+    uint16_t data_copy_len = 0;
 
     if (intflag & USBHS_UIF_TRANSFER) {
         switch (intst & USBHS_UIS_TOKEN_MASK) {
@@ -528,6 +546,33 @@ void USBHS_IRQHandler (void) {
                 }
                 break;
 
+            // CDC中断上传状态更改
+            case USBHS_UIS_TOKEN_IN | DEF_UEP3:
+                USBHSD->UEP3_TX_CTRL ^= USBHS_UEP_T_TOG_DATA1;
+                USBHSD->UEP3_TX_CTRL &= ~USBHS_UEP_T_RES_MASK;
+                USBHSD->UEP3_TX_CTRL |= USBHS_UEP_T_RES_NAK;
+                break;
+
+            // CDC TX
+            case USBHS_UIS_TOKEN_IN | DEF_UEP2:
+            if (intst & USBHS_UIS_TOG_OK) {
+                USBHSD->UEP2_TX_CTRL = (USBHSD->UEP2_TX_CTRL & ~USBHS_UEP_T_RES_MASK) | USBHS_UEP_T_RES_NAK;
+                USBHSD->UEP2_TX_CTRL ^= USBHS_UEP_T_TOG_DATA1;
+                if (!cdc_tx_cplt) {
+                    uint32_t tx_len = cdc_tx_len_ > DEF_USB_EP2_HS_SIZE ? DEF_USB_EP2_HS_SIZE : cdc_tx_len_;
+                    USBHSD->UEP2_TX_LEN = tx_len;
+                    USBHSD->UEP2_TX_DMA = cdc_tx_ptr_;
+                    cdc_tx_ptr_ += tx_len;
+                    cdc_tx_len_ -= tx_len;
+                    if (cdc_tx_len_ == 0 && tx_len < DEF_USB_EP2_HS_SIZE) {
+                        cdc_tx_cplt = true;
+                    }
+                    USBHSD->UEP2_TX_CTRL &= ~USBHS_UEP_T_RES_MASK;
+                    USBHSD->UEP2_TX_CTRL |= USBHS_UEP_T_RES_ACK;
+                }
+            }
+                break;
+
             default:
                 break;
             }
@@ -538,12 +583,12 @@ void USBHS_IRQHandler (void) {
             switch (intst & (USBHS_UIS_TOKEN_MASK | USBHS_UIS_ENDP_MASK)) {
             /* end-point 0 data out interrupt */
             case USBHS_UIS_TOKEN_OUT | DEF_UEP0:
-                len = USBHSH->RX_LEN;
+                len = USBHSD->RX_LEN;
                 if (intst & USBHS_UIS_TOG_OK) {
                     /* if any processing about rx, set it here */
                     if ((USBHS_SetupReqType & USB_REQ_TYP_MASK) != USB_REQ_TYP_STANDARD) {
                         /* Non-standard request end-point 0 Data download */
-                        _errflag = USBHS_UAC_Out(_errflag);
+                        _errflag = USBHS_UAC_RX(_errflag);
                     } else {
                         /* Standard request end-point 0 Data download */
                     }
@@ -555,14 +600,26 @@ void USBHS_IRQHandler (void) {
                 }
                 break;
 
-            /* end-point 3 data out interrupt */
-            case USBHS_UIS_TOKEN_OUT | DEF_UEP3:
+            /* end-point 1 data out interrupt */
+            case USBHS_UIS_TOKEN_OUT | DEF_UEP1:
                 if (intst & USBHS_UIS_TOG_OK) {
-                    len = (uint16_t)(USBHSD->RX_LEN);
-                    // TODO: copy data to i2s
-                    // TODO: clock sync
-                    USBHSD->UEP3_RX_CTRL = ((USBHSD->UEP3_RX_CTRL) & ~USBHS_UEP_R_RES_MASK) | USBHS_UEP_R_RES_ACK;
+                    // switch dma block
+                    if (curr_dma_block == 0) {
+                        USBHSD->UEP3_TX_DMA = (uint32_t)&USBHS_EP1_Rx_Buf[DEF_USB_EP3_HS_SIZE / 2];
+                        curr_dma_block = 1;
+                    }
+                    else {
+                        USBHSD->UEP3_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Rx_Buf;
+                        curr_dma_block = 0;
+                    }
+                    USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_TOG_DATA0 | USBHS_UEP_R_RES_ACK;
+                    has_data_copy = 1;
+                    data_copy_len = USBHSD->RX_LEN; // N1 len in T2 interval
                 }
+                break;
+
+            // ep3 rx: CDC串口接收
+            case USBHS_UIS_TOKEN_OUT | DEF_UEP2:
                 break;
 
             default:
@@ -579,6 +636,16 @@ void USBHS_IRQHandler (void) {
             break;
         }
         USBHSD->INT_FG = USBHS_UIF_TRANSFER;
+
+        if (has_data_copy) {
+            // write buffer
+            if (curr_dma_block == 1) {
+                Codec_WriteUACBuffer(USBHS_EP1_Rx_Buf, data_copy_len);
+            }
+            else {
+                Codec_WriteUACBuffer(USBHS_EP1_Rx_Buf + DEF_USB_EP3_HS_SIZE / 2, data_copy_len);
+            }
+        }
     } else if (intflag & USBHS_UIF_SETUP_ACT) {
         USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_TOG_DATA1 | USBHS_UEP_T_RES_NAK;
         USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_TOG_DATA1 | USBHS_UEP_R_RES_NAK;
@@ -595,12 +662,11 @@ void USBHS_IRQHandler (void) {
         if ((USBHS_SetupReqType & USB_REQ_TYP_MASK) != USB_REQ_TYP_STANDARD) {
             /* usb non-standard request processing */
             _errflag = USBHS_UAC_Setup(_errflag);
-            if (USBHS_SetupReqLen > len) {
-                USBHS_SetupReqLen = len;
-            }
-            if (USBHS_SetupReqLen > DEF_USBD_UEP0_SIZE) {
-                len = DEF_USBD_UEP0_SIZE;
-            }
+            if (USBHS_SetupReqType & 0x80) { // in, or get something
+                if (USBHS_SetupReqLen > len) {
+                    USBHS_SetupReqLen = len;
+                }
+            } // else out, or set something do not change
         } else {
             /* usb standard request processing */
             switch (USBHS_SetupReqCode) {
@@ -750,31 +816,6 @@ void USBHS_IRQHandler (void) {
                             USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
                             break;
 
-                        case (DEF_UEP1 | DEF_UEP_IN):
-                            /* Set End-point 2 IN NAK */
-                            USBHSD->UEP1_TX_CTRL = USBHS_UEP_T_RES_NAK;
-                            break;
-
-                        case (DEF_UEP3 | DEF_UEP_OUT):
-                            /* Set End-point 3 OUT ACK */
-                            USBHSD->UEP3_RX_CTRL = USBHS_UEP_R_RES_ACK;
-                            break;
-
-                        case (DEF_UEP4 | DEF_UEP_IN):
-                            /* Set End-point 4 IN NAK */
-                            USBHSD->UEP4_TX_CTRL = USBHS_UEP_T_RES_NAK;
-                            break;
-
-                        case (DEF_UEP5 | DEF_UEP_OUT):
-                            /* Set End-point 5 OUT ACK */
-                            USBHSD->UEP5_RX_CTRL = USBHS_UEP_R_RES_ACK;
-                            break;
-
-                        case (DEF_UEP6 | DEF_UEP_IN):
-                            /* Set End-point 6 IN NAK */
-                            USBHSD->UEP6_TX_CTRL = USBHS_UEP_T_RES_NAK;
-                            break;
-
                         default:
                             errflag = 0xFF;
                             break;
@@ -821,31 +862,6 @@ void USBHS_IRQHandler (void) {
                             USBHSD->UEP1_RX_CTRL = (USBHSD->UEP1_RX_CTRL & ~USBHS_UEP_R_RES_MASK) | USBHS_UEP_R_RES_STALL;
                             break;
 
-                        case (DEF_UEP1 | DEF_UEP_IN):
-                            /* Set End-point 1 IN STALL */
-                            USBHSD->UEP1_TX_CTRL = (USBHSD->UEP1_TX_CTRL & ~USBHS_UEP_T_RES_MASK) | USBHS_UEP_T_RES_STALL;
-                            break;
-
-                        case (DEF_UEP3 | DEF_UEP_OUT):
-                            /* Set End-point 3 OUT STALL */
-                            USBHSD->UEP3_RX_CTRL = (USBHSD->UEP3_RX_CTRL & ~USBHS_UEP_R_RES_MASK) | USBHS_UEP_R_RES_STALL;
-                            break;
-
-                        case (DEF_UEP4 | DEF_UEP_IN):
-                            /* Set End-point 4 IN STALL */
-                            USBHSD->UEP4_TX_CTRL = (USBHSD->UEP4_TX_CTRL & ~USBHS_UEP_T_RES_MASK) | USBHS_UEP_T_RES_STALL;
-                            break;
-
-                        case (DEF_UEP5 | DEF_UEP_OUT):
-                            /* Set End-point 5 OUT STALL */
-                            USBHSD->UEP5_RX_CTRL = (USBHSD->UEP5_RX_CTRL & ~USBHS_UEP_R_RES_MASK) | USBHS_UEP_R_RES_STALL;
-                            break;
-
-                        case (DEF_UEP6 | DEF_UEP_IN):
-                            /* Set End-point 6 IN STALL */
-                            USBHSD->UEP6_TX_CTRL = (USBHSD->UEP6_TX_CTRL & ~USBHS_UEP_T_RES_MASK) | USBHS_UEP_T_RES_STALL;
-                            break;
-
                         default:
                             errflag = 0xFF;
                             break;
@@ -871,18 +887,21 @@ void USBHS_IRQHandler (void) {
                 }
                 else if (USBHS_SetupReqValue == 0) {
                     // mute
-                    USBHSD->UEP3_RX_CTRL = USBHS_UEP_R_RES_NAK;
+                    USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_NAK;
                     audio_stream_interface_work = 0;
+                    Codec_Stop();
                 }
                 else {
                     // start
-                    USBHSD->UEP3_RX_CTRL = USBHS_UEP_R_TOG_DATA0 | USBHS_UEP_R_RES_ACK;
+                    USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_TOG_DATA0 | USBHS_UEP_R_RES_ACK;
                     audio_stream_interface_work = 1;
+                    Codec_Start();
                 }
                 if (_errflag != 0) {
                     // mute
-                    USBHSD->UEP3_RX_CTRL = USBHS_UEP_R_RES_NAK;
+                    USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_NAK;
                     audio_stream_interface_work = 0;
+                    Codec_Stop();
                 }
             }
                 break;

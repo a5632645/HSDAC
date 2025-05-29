@@ -7,12 +7,30 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 
-#define I2S_DMA_BLOCK_SIZE 1024
+#define I2S_DMA_BLOCK_SIZE 192
 #define I2S_DMA_BUFFER_SIZE (I2S_DMA_BLOCK_SIZE * 2)
 static StereoSample_T i2s_dma_buffer_[I2S_DMA_BUFFER_SIZE] = {0};
 static volatile bool transfer_error_ = false;
 static volatile StereoSample_T* block_to_fill = NULL;
+
+// clock sync
+#define UAC_BUFFER_LEN 2048
+#define UAC_BUFFER_LEN_MASK 2047
+#define UAC_WPOS_INIT (UAC_BUFFER_LEN / 4)
+static volatile int32_t dma_counter_ = 0;
+static StereoSample_T uac_buffer_[UAC_BUFFER_LEN] = {0};
+static uint32_t uac_buf_wpos_ = UAC_WPOS_INIT;
+static uint32_t uac_buf_rpos = 0;
+static uint32_t total_usb_write_ = 0;
+static uint32_t total_usb_read_ = 0;
+static uint32_t raw_total_usb_write_ = 0;
+static uint32_t raw_total_usb_read_ = 0;
+
+uint32_t num_usb = 0;
+uint32_t num_dma = 0;
+uint32_t num_dma_cplt_tx = 0;
 
 static void DMA_Tx_Init(DMA_Channel_TypeDef* DMA_CHx, u32 ppadr, u32 memadr, u16 bufsize) {
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
@@ -119,12 +137,34 @@ void DMA1_Channel5_IRQHandler(void) {
         transfer_error_ = true;
     }
     if (DMA_GetFlagStatus(DMA1_FLAG_TC5) == SET) {
+        ++num_dma_cplt_tx;
+
         DMA_ClearFlag(DMA1_FLAG_TC5);
-        block_to_fill = &i2s_dma_buffer_[I2S_DMA_BLOCK_SIZE];
+        NVIC_DisableIRQ(USBHS_IRQn);
+        StereoSample_T* block_to_fill_ = &i2s_dma_buffer_[I2S_DMA_BLOCK_SIZE];
+        uint32_t len = Codec_GetUACBufferLen();
+        if (len > I2S_DMA_BLOCK_SIZE) len = I2S_DMA_BLOCK_SIZE;
+        for (uint32_t i = 0; i < len; ++i) {
+            *block_to_fill_ = uac_buffer_[uac_buf_rpos];
+            ++uac_buf_rpos;
+            uac_buf_rpos &= UAC_BUFFER_LEN_MASK;
+            ++block_to_fill_;
+        }
+        NVIC_EnableIRQ(USBHS_IRQn);
     }
     if (DMA_GetFlagStatus(DMA1_FLAG_HT5) == SET) {
         DMA_ClearFlag(DMA1_FLAG_HT5);
-        block_to_fill = &i2s_dma_buffer_[0];
+        NVIC_DisableIRQ(USBHS_IRQn);
+        StereoSample_T* block_to_fill_ = &i2s_dma_buffer_[0];
+        uint32_t len = Codec_GetUACBufferLen();
+        if (len > I2S_DMA_BLOCK_SIZE) len = I2S_DMA_BLOCK_SIZE;
+        for (uint32_t i = 0; i < len; ++i) {
+            *block_to_fill_ = uac_buffer_[uac_buf_rpos];
+            ++uac_buf_rpos;
+            uac_buf_rpos &= UAC_BUFFER_LEN_MASK;
+            ++block_to_fill_;
+        }
+        NVIC_EnableIRQ(USBHS_IRQn);
     }
 }
 
@@ -219,19 +259,8 @@ static int32_t Swap16(int32_t x) {
 
 void Codec_Init(void) {
     I2S2_Init();
+    DMA_Tx_Init(DMA1_Channel5, (u32)&SPI2->DATAR, (u32)&i2s_dma_buffer_, I2S_DMA_BUFFER_SIZE * sizeof(StereoSample_T) / sizeof(uint16_t));
     I2C2_Init();
-
-    for (uint32_t i = 0; i < I2S_DMA_BUFFER_SIZE; ++i) {
-        float e = (float)i / (float)(I2S_DMA_BUFFER_SIZE) * 2.0f * M_PI;
-        float sin = sinf(e);
-        float cosine = cosf(e);
-        const int32_t eee = (16384 << 16) + 1;
-        i2s_dma_buffer_[i].left = Swap16(eee * sin);
-        i2s_dma_buffer_[i].right = Swap16(eee * cosine);
-    }
-
-    DMA_Tx_Init(DMA1_Channel5, (u32)&SPI2->DATAR, (u32)&i2s_dma_buffer_, I2S_DMA_BUFFER_SIZE * 4);
-    DMA_Cmd(DMA1_Channel5, ENABLE);
 
     // PA1/PA5 -> RESETB
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE);
@@ -314,4 +343,110 @@ uint8_t Codec_PollRead(uint8_t reg) {
     uint8_t val = I2C_ReceiveData(I2C2);
     I2C_GenerateSTOP(I2C2, ENABLE);
     return val;
+}
+
+// ---------- clock sync ----------
+void Codec_ClockSync_Reset (void) {
+    dma_counter_ = I2S_DMA_BUFFER_SIZE * sizeof(StereoSample_T) / sizeof(uint16_t);
+    num_dma = dma_counter_;
+}
+
+uint32_t Codec_ClockSync_GetNumRead (void) {
+    int32_t curr_dma_counter = DMA_GetCurrDataCounter(DMA1_Channel5);
+    int32_t count = (dma_counter_ - curr_dma_counter) / 4;
+    if (count < 0) {
+        count += I2S_DMA_BUFFER_SIZE;
+    }
+    dma_counter_ = curr_dma_counter;
+    return count;
+}
+
+void Codec_SetResampleRatio (float ratio) {
+}
+
+void Codec_Start (void) {
+    Codec_ClockSync_Reset();
+    DMA_SetCurrDataCounter(DMA1_Channel5, I2S_DMA_BUFFER_SIZE * sizeof(StereoSample_T) / sizeof(uint16_t));
+    DMA_Cmd(DMA1_Channel5, ENABLE);
+}
+
+void Codec_Stop(void) {
+    DMA_Cmd(DMA1_Channel5, DISABLE);
+    uac_buf_wpos_ = UAC_WPOS_INIT;
+    uac_buf_rpos = 0;
+}
+
+uint32_t Codec_GetDMASize (void) {
+    return I2S_DMA_BUFFER_SIZE;
+}
+
+uint32_t Codec_GetDMAHalfSize (void) {
+    return I2S_DMA_BLOCK_SIZE;
+}
+
+bool Codec_IsDMAStart (void) {
+    return true;
+}
+
+volatile uint32_t max_uac_len_ever = 0;
+volatile uint32_t min_uac_len_ever = 0xffffffff;
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
+    uint32_t num_input_stereo_samples = len / sizeof(StereoSample_T);
+    num_usb += num_input_stereo_samples;
+
+    uint32_t es = Codec_ClockSync_GetNumRead();
+    total_usb_read_ += es;
+    raw_total_usb_read_ += es;
+    total_usb_write_ += num_input_stereo_samples;
+    raw_total_usb_write_ += num_input_stereo_samples;
+
+    uint32_t uac_len = (uac_buf_wpos_ - uac_buf_rpos + UAC_BUFFER_LEN) & UAC_BUFFER_LEN_MASK;
+    if (uac_len < min_uac_len_ever) min_uac_len_ever = uac_len;
+    const uint32_t* src_ptr = (const uint32_t*)ptr;
+    while (num_input_stereo_samples--) {
+        uac_buffer_[uac_buf_wpos_].left = *src_ptr;
+        ++src_ptr;
+        uac_buffer_[uac_buf_wpos_].right = *src_ptr;
+        ++src_ptr;
+        ++uac_buf_wpos_;
+        uac_buf_wpos_ &= UAC_BUFFER_LEN_MASK;
+    }
+
+    if (total_usb_read_ > total_usb_write_) {
+        // 补数据
+        uint32_t num_bu = total_usb_read_ - total_usb_write_;
+        StereoSample_T copy = uac_buffer_[(uac_buf_wpos_ - 1) & UAC_BUFFER_LEN_MASK];
+        for (uint32_t i = 0; i < num_bu; ++i) {
+            uac_buffer_[uac_buf_wpos_] = copy;
+            ++uac_buf_wpos_;
+            uac_buf_wpos_ &= UAC_BUFFER_LEN_MASK;
+        }
+        total_usb_write_ = total_usb_read_;
+    }
+    else if (total_usb_write_ > total_usb_read_) {
+        // 删数据
+        uint32_t num_shan = total_usb_write_ - total_usb_read_;
+        uac_buf_wpos_ -= num_shan;
+        uac_buf_wpos_ &= UAC_BUFFER_LEN_MASK;
+        total_usb_write_ = total_usb_read_;
+    }
+
+    uac_len = (uac_buf_wpos_ - uac_buf_rpos + UAC_BUFFER_LEN) & UAC_BUFFER_LEN_MASK;
+    if (uac_len > max_uac_len_ever) max_uac_len_ever = uac_len;
+}
+
+uint32_t Codec_GetUACBufferLen (void) {
+    return (uac_buf_wpos_ - uac_buf_rpos + UAC_BUFFER_LEN) & UAC_BUFFER_LEN_MASK;
+}
+
+void Codec_CheckBuffer(void) {
+}
+
+uint32_t Codec_GetDMALen(void) {
+    int32_t curr_dma_counter = DMA_GetCurrDataCounter(DMA1_Channel5);
+    int32_t count = num_dma - curr_dma_counter + I2S_DMA_BUFFER_SIZE * 4 * num_dma_cplt_tx;
+    num_dma = curr_dma_counter;
+    num_dma_cplt_tx = 0;
+    return count;
 }

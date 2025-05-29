@@ -45,8 +45,7 @@
 				"post_script": "",
 				"post_script_description": "",
 				"excludeResources": [
-					"${project}/Startup/startup_ch32v30x_D8.S",
-					"${project}/User/codec.c"
+					"${project}/Startup/startup_ch32v30x_D8.S"
 				],
 				"riscvTargetProcessor": {
 					"architecture": "rv32i",
@@ -67,7 +66,7 @@
 					"other_target_flags": ""
 				},
 				"optimization": {
-					"level": "none",
+					"level": "size",
 					"message_length": true,
 					"char_is_signed": true,
 					"function_sections": true,
@@ -611,7 +610,7 @@
 		"address": "0x08000000",
 		"target_path": "obj\\HSDAC.hex",
 		"clkSpeed": "High",
-		"debug_interface_mode": "1-wire serial",
+		"debug_interface_mode": "",
 		"erase": false,
 		"program": true,
 		"verify": true,
