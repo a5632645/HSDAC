@@ -145,9 +145,11 @@ void USBHS_Device_Endp_Init (void) {
 
     USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
 
+    USBHSD->UEP2_TX_LEN = 0;
     USBHSD->UEP2_TX_CTRL = USBHS_UEP_T_RES_NAK;
     USBHSD->UEP2_RX_CTRL = USBHS_UEP_R_RES_ACK;
 
+    USBHSD->UEP3_TX_LEN = 0;
     USBHSD->UEP3_TX_CTRL = USBHS_UEP_T_RES_NAK;
 
     /* Clear End-points Busy Status */
@@ -334,7 +336,7 @@ static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
                                     44100, 44100, 0,
                                     48000, 48000, 0,
                                     96000, 96000, 0,
-                                    192000, 192000, 192000
+                                    192000, 192000, 0,
                                 };
                                 *(uint16_t*)USBHS_EP0_Buf = sizeof(fs_array) / (sizeof(uint32_t) * 3);
                                 memcpy(USBHS_EP0_Buf + 2, fs_array, sizeof(fs_array));
@@ -420,6 +422,7 @@ static uint8_t USBHS_UAC_RX(uint8_t _errflag) {
                                 // set
                                 volatile uint32_t fs = *(uint32_t*)USBHS_EP0_Buf;
                                 sample_rate = fs;
+                                Codec_SetSampleRate(sample_rate);
                                 ssupport;
                             }
                             break;
@@ -476,10 +479,12 @@ static uint8_t USBHS_UAC_RX(uint8_t _errflag) {
 static volatile uint32_t cdc_tx_len_ = 0;
 static volatile uint32_t cdc_tx_ptr_ = 0;
 static volatile bool cdc_tx_cplt = true;
+static volatile bool has_zero_package = false;
 uint32_t USBCDC_Write(const char* buf, uint32_t len) {
     cdc_tx_ptr_ = (uint32_t)buf;
     cdc_tx_len_ = len;
     cdc_tx_cplt = false;
+    if (len % DEF_USB_EP2_HS_SIZE == 0) has_zero_package = true;
     uint32_t tx_len = len > DEF_USB_EP2_HS_SIZE ? DEF_USB_EP2_HS_SIZE : len;
     cdc_tx_ptr_ += tx_len;
     cdc_tx_len_ -= tx_len;
@@ -503,8 +508,6 @@ void USBHS_IRQHandler (void) {
     volatile int8_t intflag = USBHSD->INT_FG;
     volatile int8_t intst = USBHSD->INT_ST;
     volatile uint8_t _errflag = 0;
-    uint8_t has_data_copy = 0;
-    uint16_t data_copy_len = 0;
 
     if (intflag & USBHS_UIF_TRANSFER) {
         switch (intst & USBHS_UIS_TOKEN_MASK) {
@@ -564,11 +567,16 @@ void USBHS_IRQHandler (void) {
                     USBHSD->UEP2_TX_DMA = cdc_tx_ptr_;
                     cdc_tx_ptr_ += tx_len;
                     cdc_tx_len_ -= tx_len;
-                    if (cdc_tx_len_ == 0 && tx_len < DEF_USB_EP2_HS_SIZE) {
+                    if (tx_len == 0 && !has_zero_package) {
                         cdc_tx_cplt = true;
                     }
-                    USBHSD->UEP2_TX_CTRL &= ~USBHS_UEP_T_RES_MASK;
-                    USBHSD->UEP2_TX_CTRL |= USBHS_UEP_T_RES_ACK;
+                    else {
+                        if (tx_len == 0 && has_zero_package) {
+                            has_zero_package = false;
+                        }
+                        USBHSD->UEP2_TX_CTRL &= ~USBHS_UEP_T_RES_MASK;
+                        USBHSD->UEP2_TX_CTRL |= USBHS_UEP_T_RES_ACK;
+                    }
                 }
             }
                 break;
@@ -605,16 +613,23 @@ void USBHS_IRQHandler (void) {
                 if (intst & USBHS_UIS_TOG_OK) {
                     // switch dma block
                     if (curr_dma_block == 0) {
-                        USBHSD->UEP3_TX_DMA = (uint32_t)&USBHS_EP1_Rx_Buf[DEF_USB_EP3_HS_SIZE / 2];
+                        USBHSD->UEP1_RX_DMA = (uint32_t)&USBHS_EP1_Rx_Buf[DEF_USB_EP3_HS_SIZE / 2];
                         curr_dma_block = 1;
                     }
                     else {
-                        USBHSD->UEP3_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Rx_Buf;
+                        USBHSD->UEP1_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Rx_Buf;
                         curr_dma_block = 0;
                     }
+
+                    uint16_t data_copy_len = USBHSD->RX_LEN;
+                    if (curr_dma_block == 1) {
+                        Codec_WriteUACBuffer(USBHS_EP1_Rx_Buf, data_copy_len);
+                    }
+                    else {
+                        Codec_WriteUACBuffer(USBHS_EP1_Rx_Buf + DEF_USB_EP3_HS_SIZE / 2, data_copy_len);
+                    }
+
                     USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_TOG_DATA0 | USBHS_UEP_R_RES_ACK;
-                    has_data_copy = 1;
-                    data_copy_len = USBHSD->RX_LEN; // N1 len in T2 interval
                 }
                 break;
 
@@ -636,16 +651,6 @@ void USBHS_IRQHandler (void) {
             break;
         }
         USBHSD->INT_FG = USBHS_UIF_TRANSFER;
-
-        if (has_data_copy) {
-            // write buffer
-            if (curr_dma_block == 1) {
-                Codec_WriteUACBuffer(USBHS_EP1_Rx_Buf, data_copy_len);
-            }
-            else {
-                Codec_WriteUACBuffer(USBHS_EP1_Rx_Buf + DEF_USB_EP3_HS_SIZE / 2, data_copy_len);
-            }
-        }
     } else if (intflag & USBHS_UIF_SETUP_ACT) {
         USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_TOG_DATA1 | USBHS_UEP_T_RES_NAK;
         USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_TOG_DATA1 | USBHS_UEP_R_RES_NAK;
@@ -814,6 +819,20 @@ void USBHS_IRQHandler (void) {
                         case (DEF_UEP1 | DEF_UEP_OUT):
                             /* Set End-point 1 OUT ACK */
                             USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
+                            break;
+
+                        case (DEF_UEP2 | DEF_UEP_OUT):
+                            USBHSD->UEP2_RX_CTRL = USBHS_UEP_R_RES_ACK;
+                            break;
+
+                        case (DEF_UEP2 | DEF_UEP_IN):
+                            USBHSD->UEP2_TX_CTRL = USBHS_UEP_T_RES_NAK;
+                            cdc_tx_cplt = true;
+                            has_zero_package = false;
+                            break;
+
+                        case (DEF_UEP3 | DEF_UEP_IN):
+                            USBHSD->UEP3_TX_CTRL = USBHS_UEP_T_RES_NAK;
                             break;
 
                         default:

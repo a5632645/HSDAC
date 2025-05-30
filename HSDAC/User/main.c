@@ -13,12 +13,16 @@ static void ES9018K_Init(void) {
     Delay_Ms(100);
 
     Codec_PollWrite(0, 0xf1);
+    Codec_PollWrite(0, 0xf0);
     Codec_PollWrite(1, 0b10000000);
 }
 
 extern uint32_t num_usb;
-uint32_t usb_bck = 0;
-uint32_t dma_bck = 0;
+extern volatile uint32_t max_uac_len_ever;
+extern volatile uint32_t min_uac_len_ever;
+extern float resample_ratio_;
+extern float resample_ratio_inc_;
+extern uint32_t resample_freq_inc_;
 
 int main(void) {
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
@@ -30,20 +34,28 @@ int main(void) {
     USBHS_RCC_Init();
     USBHS_Device_Init(ENABLE);
 
-    uint32_t i = 0;
     uint32_t t = Tick_GetTick();
     for (;;) {
         uint32_t ct = Tick_GetTick();
-        if ((ct - t) > 10) {
+        if ((ct - t) > 100) {
             t = ct;
 
+            uint32_t usb_bck = num_usb * 4;
+            num_usb = 0;
+            uint32_t dma_bck = Codec_GetDMALen();
+            uint32_t usb_fs = usb_bck * 10 / 4;
+            uint32_t dma_fs = dma_bck * 10 / 4;
+
             if (USBHS_DevEnumStatus) {
-                printf("%ld,", i++);
-                // fflush(stdout);
+                printf("[fs]usb: %luHz, dma: %luHz\n\r", usb_fs, dma_fs);
+                printf("[rs]fs: %luHz, ratio_inc: %lu, ratio_freq: %lu\n\r", (uint32_t)(dma_fs * resample_ratio_), (int32_t)(resample_ratio_inc_ * 1000000), resample_freq_inc_);
+                printf("[uac]len: %lu, min: %lu, max:%lu\n\r\n\r", Codec_GetUACBufferLen(), min_uac_len_ever, max_uac_len_ever);
             }
-            // usb_bck = num_usb * 4;
-            // num_usb = 0;
-            // dma_bck = Codec_GetDMALen();
+
+                if (min_uac_len_ever < 2048)
+                    ++min_uac_len_ever;
+                if (max_uac_len_ever > 0)
+                    --max_uac_len_ever;
         }
     }
 }

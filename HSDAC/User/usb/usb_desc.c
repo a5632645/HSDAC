@@ -164,7 +164,7 @@ const uint8_t MyCfgDescr_HS[] =
     0x05,        // bDescriptorType (Endpoint)
     0x01,        // bEndpointAddress (OUT endpoint)
     0x09,        // bmAttributes (Isochronous)
-    USB_WORD(DEF_USB_EP3_HS_SIZE),  // wMaxPacketSize (192 bytes)
+    USB_WORD(DEF_USB_EP1_HS_SIZE),  // wMaxPacketSize (192 bytes)
     0x01,        // bInterval (1 frame)
 
     // Audio Streaming Endpoint Descriptor (General Audio)

@@ -8,29 +8,75 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include "tick.h"
 
 #define I2S_DMA_BLOCK_SIZE 192
 #define I2S_DMA_BUFFER_SIZE (I2S_DMA_BLOCK_SIZE * 2)
 static StereoSample_T i2s_dma_buffer_[I2S_DMA_BUFFER_SIZE] = {0};
 static volatile bool transfer_error_ = false;
-static volatile StereoSample_T* block_to_fill = NULL;
 
 // clock sync
 #define UAC_BUFFER_LEN 2048
 #define UAC_BUFFER_LEN_MASK 2047
-#define UAC_WPOS_INIT (UAC_BUFFER_LEN / 4)
+#define UAC_WPOS_INIT                 (UAC_BUFFER_LEN / 2)
+#define UAC_BUFFER_LEN_UP_THRESHOLD   (UAC_BUFFER_LEN * 60000 / 100000)
+#define UAC_BUFFER_LEN_DOWN_THRESHOLD (UAC_BUFFER_LEN * 40000 / 100000)
 static volatile int32_t dma_counter_ = 0;
 static StereoSample_T uac_buffer_[UAC_BUFFER_LEN] = {0};
 static uint32_t uac_buf_wpos_ = UAC_WPOS_INIT;
 static uint32_t uac_buf_rpos = 0;
-static uint32_t total_usb_write_ = 0;
-static uint32_t total_usb_read_ = 0;
-static uint32_t raw_total_usb_write_ = 0;
-static uint32_t raw_total_usb_read_ = 0;
+
+#define I2S_PRESCALE_ODD_MASK 0x100
+#define I2S_PRESCALE_DIV_MASK 0xff
+#define I2S_PRESCALE_MASK     0x1ff
 
 uint32_t num_usb = 0;
 uint32_t num_dma = 0;
 uint32_t num_dma_cplt_tx = 0;
+static uint32_t sample_rate_ = 0;
+float resample_ratio_ = 1.0f;
+float resample_ratio_inc_ = 0.0f;
+uint32_t resample_freq_inc_ = 5;
+static float resample_phase_ = 0.0f;
+
+#define BUFFER_STATE_OVERLOAD 1
+#define BUFFER_STATE_UNDERLOAD 2
+static uint8_t last_buffer_state_ = 0;
+static uint8_t ccc = 0;
+
+volatile uint32_t max_uac_len_ever = 0;
+volatile uint32_t min_uac_len_ever = 0xffffffff;
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+
+static void IncPrescale(uint16_t* s) {
+    uint16_t tmp = *s;
+    uint16_t odd = 0;
+    uint16_t div = tmp & I2S_PRESCALE_DIV_MASK;
+    if (tmp & I2S_PRESCALE_ODD_MASK) {
+        odd = 0;
+        ++div;
+    }
+    else {
+        odd = I2S_PRESCALE_ODD_MASK;
+    }
+    tmp = (tmp & ~I2S_PRESCALE_MASK) | odd | div;
+    *s = tmp;
+}
+
+static void DecPrescale(uint16_t* s) {
+    uint16_t tmp = *s;
+    uint16_t odd = 0;
+    uint16_t div = tmp & I2S_PRESCALE_DIV_MASK;
+    if (tmp & I2S_PRESCALE_ODD_MASK) {
+        odd = 0;
+    }
+    else {
+        odd = I2S_PRESCALE_ODD_MASK;
+        --div;
+    }
+    tmp = (tmp & ~I2S_PRESCALE_MASK) | odd | div;
+    *s = tmp;
+}
 
 static void DMA_Tx_Init(DMA_Channel_TypeDef* DMA_CHx, u32 ppadr, u32 memadr, u16 bufsize) {
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
@@ -86,7 +132,7 @@ static void I2S2_Init(void) {
     I2S_InitStructure.I2S_Standard = I2S_Standard_Phillips;
     I2S_InitStructure.I2S_DataFormat = I2S_DataFormat_32b;
     I2S_InitStructure.I2S_MCLKOutput = I2S_MCLKOutput_Enable;
-    I2S_InitStructure.I2S_AudioFreq = I2S_AudioFreq_192k;
+    I2S_InitStructure.I2S_AudioFreq = I2S_AudioFreq_48k;
     I2S_InitStructure.I2S_CPOL = I2S_CPOL_High;
     I2S_Init(SPI2, &I2S_InitStructure);
 
@@ -137,35 +183,112 @@ void DMA1_Channel5_IRQHandler(void) {
         transfer_error_ = true;
     }
     if (DMA_GetFlagStatus(DMA1_FLAG_TC5) == SET) {
-        ++num_dma_cplt_tx;
-
         DMA_ClearFlag(DMA1_FLAG_TC5);
+        ++num_dma_cplt_tx;
         NVIC_DisableIRQ(USBHS_IRQn);
+
         StereoSample_T* block_to_fill_ = &i2s_dma_buffer_[I2S_DMA_BLOCK_SIZE];
-        uint32_t len = Codec_GetUACBufferLen();
-        if (len > I2S_DMA_BLOCK_SIZE) len = I2S_DMA_BLOCK_SIZE;
-        for (uint32_t i = 0; i < len; ++i) {
-            *block_to_fill_ = uac_buffer_[uac_buf_rpos];
-            ++uac_buf_rpos;
-            uac_buf_rpos &= UAC_BUFFER_LEN_MASK;
+        uint32_t bck_rpos = uac_buf_rpos;
+        uint32_t resampled_len = 0;
+
+        // resample buffer
+        for (uint32_t i = 0; i < I2S_DMA_BLOCK_SIZE; ++i) {
+            block_to_fill_->left = uac_buffer_[bck_rpos].left;
+            block_to_fill_->right = uac_buffer_[bck_rpos].right;
             ++block_to_fill_;
+            resample_phase_ += resample_ratio_;
+            if (resample_phase_ >= 1.0f) {
+                uint32_t iinc = (uint32_t)resample_phase_;
+                bck_rpos = (bck_rpos + iinc) & UAC_BUFFER_LEN_MASK;
+                resample_phase_ -= iinc;
+                resampled_len += iinc;
+            }
         }
-        NVIC_EnableIRQ(USBHS_IRQn);
+
+        // process len
+        uint32_t len = Codec_GetUACBufferLen();
+        if (resampled_len > len) {
+            resampled_len = len;
+        }
+        uac_buf_rpos = (uac_buf_rpos + resampled_len) & UAC_BUFFER_LEN_MASK;
     }
     if (DMA_GetFlagStatus(DMA1_FLAG_HT5) == SET) {
         DMA_ClearFlag(DMA1_FLAG_HT5);
         NVIC_DisableIRQ(USBHS_IRQn);
+
         StereoSample_T* block_to_fill_ = &i2s_dma_buffer_[0];
-        uint32_t len = Codec_GetUACBufferLen();
-        if (len > I2S_DMA_BLOCK_SIZE) len = I2S_DMA_BLOCK_SIZE;
-        for (uint32_t i = 0; i < len; ++i) {
-            *block_to_fill_ = uac_buffer_[uac_buf_rpos];
-            ++uac_buf_rpos;
-            uac_buf_rpos &= UAC_BUFFER_LEN_MASK;
+        uint32_t bck_rpos = uac_buf_rpos;
+        uint32_t resampled_len = 0;
+
+        // resample buffer
+        for (uint32_t i = 0; i < I2S_DMA_BLOCK_SIZE; ++i) {
+            block_to_fill_->left = uac_buffer_[bck_rpos].left;
+            block_to_fill_->right = uac_buffer_[bck_rpos].right;
             ++block_to_fill_;
+            resample_phase_ += resample_ratio_;
+            if (resample_phase_ >= 1.0f) {
+                uint32_t iinc = (uint32_t)resample_phase_;
+                bck_rpos = (bck_rpos + iinc) & UAC_BUFFER_LEN_MASK;
+                resample_phase_ -= iinc;
+                resampled_len += iinc;
+            }
         }
-        NVIC_EnableIRQ(USBHS_IRQn);
+
+        // process len
+        uint32_t len = Codec_GetUACBufferLen();
+        if (resampled_len > len) {
+            resampled_len = len;
+        }
+        uac_buf_rpos = (uac_buf_rpos + resampled_len) & UAC_BUFFER_LEN_MASK;
     }
+
+    // process underload/overload
+    if (Tick_GetTick() - ccc > 20) {
+        ccc = Tick_GetTick();
+
+        uint32_t uac_len = Codec_GetUACBufferLen();
+        if (uac_len > UAC_BUFFER_LEN_UP_THRESHOLD) {
+            // if (last_buffer_state_ == BUFFER_STATE_OVERLOAD) {
+            //     // 连续过载，直接增加重采样系数
+            //     resample_ratio_ += resample_ratio_inc_;
+            // }
+            // else if (last_buffer_state_ == BUFFER_STATE_UNDERLOAD) {
+            //     // 欠载之后又过载，减小系数增加，增加系数
+            //     resample_freq_inc_ /= 2;
+            //     resample_ratio_inc_ = (float)resample_freq_inc_ / (float)sample_rate_;
+            //     resample_ratio_ += resample_ratio_inc_;
+            //     last_buffer_state_ = BUFFER_STATE_OVERLOAD;
+            // }
+            // else {
+            //     // 我不知道
+            //     resample_ratio_ += resample_ratio_inc_;
+            // }
+            // last_buffer_state_ = BUFFER_STATE_OVERLOAD;
+            resample_ratio_ += resample_ratio_inc_;
+        }
+        else if (uac_len < UAC_BUFFER_LEN_DOWN_THRESHOLD) {
+            // if (last_buffer_state_ == BUFFER_STATE_OVERLOAD) {
+            //     // 过载之后又欠载，减小系数增加，减小系数
+            //     resample_freq_inc_ /= 2;
+            //     resample_ratio_inc_ = (float)resample_freq_inc_ / (float)sample_rate_;
+            //     resample_ratio_ -= resample_ratio_inc_;
+            // }
+            // else if (last_buffer_state_ == BUFFER_STATE_UNDERLOAD) {
+            //     // 连续欠载，直接减小重采样系数
+            //     resample_ratio_ -= resample_ratio_inc_;
+            // }
+            // else {
+            //     // 我不知道
+            //     resample_ratio_ -= resample_ratio_inc_;
+            // }
+            // last_buffer_state_ = BUFFER_STATE_UNDERLOAD;
+            resample_ratio_ -= resample_ratio_inc_;
+        }
+    }
+
+    resample_ratio_ = resample_ratio_ * 0.999f + 1.0f * 0.001f;
+
+    NVIC_EnableIRQ(USBHS_IRQn);
 }
 
 static I2CFuture_T* i2c_future_ = NULL;
@@ -249,9 +372,9 @@ void I2C2_ER_IRQHandler(void) {
 // public
 // ========================================
 static int32_t Swap16(int32_t x) {
-    int32_t ret;
-    int16_t* a = &x;
-    int16_t* b = &ret;
+    volatile int32_t ret = 0;
+    volatile int16_t* a = &x;
+    volatile int16_t* b = &ret;
     b[0] = a[1];
     b[1] = a[0];
     return ret;
@@ -273,6 +396,14 @@ void Codec_Init(void) {
     init.GPIO_Speed = GPIO_Speed_50MHz;
     init.GPIO_Pin = GPIO_Pin_1;
     GPIO_Init(GPIOA, &init);
+
+    for (uint32_t i = 0; i < I2S_DMA_BUFFER_SIZE; ++i) {
+        float p = (float)i * M_PI * 2 / (float)(I2S_DMA_BUFFER_SIZE);
+        float s = sinf(p);
+        float cs = cosf(p);
+        i2s_dma_buffer_[i].left = Swap16(s * (1 << 31));
+        i2s_dma_buffer_[i].right = Swap16(cs * (1 << 31));
+    }
 }
 
 void Codec_DeInit(void) {
@@ -287,16 +418,8 @@ bool Codec_IsTransferError(void) {
     return transfer_error_;
 }
 
-StereoSample_T* Codec_GetBlockToFill(void) {
-    return block_to_fill;
-}
-
 uint32_t Codec_GetBlockSize(void) {
     return I2S_DMA_BLOCK_SIZE;
-}
-
-void Codec_BlockFilled(void) {
-    block_to_fill = NULL;
 }
 
 void Codec_Write(I2CFuture_T* pstate) {
@@ -366,7 +489,6 @@ void Codec_SetResampleRatio (float ratio) {
 
 void Codec_Start (void) {
     Codec_ClockSync_Reset();
-    DMA_SetCurrDataCounter(DMA1_Channel5, I2S_DMA_BUFFER_SIZE * sizeof(StereoSample_T) / sizeof(uint16_t));
     DMA_Cmd(DMA1_Channel5, ENABLE);
 }
 
@@ -388,48 +510,23 @@ bool Codec_IsDMAStart (void) {
     return true;
 }
 
-volatile uint32_t max_uac_len_ever = 0;
-volatile uint32_t min_uac_len_ever = 0xffffffff;
-#define MIN(a, b) ((a) > (b) ? (b) : (a))
 void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
     uint32_t num_input_stereo_samples = len / sizeof(StereoSample_T);
     num_usb += num_input_stereo_samples;
 
-    uint32_t es = Codec_ClockSync_GetNumRead();
-    total_usb_read_ += es;
-    raw_total_usb_read_ += es;
-    total_usb_write_ += num_input_stereo_samples;
-    raw_total_usb_write_ += num_input_stereo_samples;
-
     uint32_t uac_len = (uac_buf_wpos_ - uac_buf_rpos + UAC_BUFFER_LEN) & UAC_BUFFER_LEN_MASK;
     if (uac_len < min_uac_len_ever) min_uac_len_ever = uac_len;
+
+    uint32_t can_write = UAC_BUFFER_LEN_MASK - uac_len;
+    if (num_input_stereo_samples > can_write) num_input_stereo_samples = can_write;
     const uint32_t* src_ptr = (const uint32_t*)ptr;
     while (num_input_stereo_samples--) {
-        uac_buffer_[uac_buf_wpos_].left = *src_ptr;
+        uac_buffer_[uac_buf_wpos_].left = Swap16(*src_ptr);
         ++src_ptr;
-        uac_buffer_[uac_buf_wpos_].right = *src_ptr;
+        uac_buffer_[uac_buf_wpos_].right = Swap16(*src_ptr);
         ++src_ptr;
         ++uac_buf_wpos_;
         uac_buf_wpos_ &= UAC_BUFFER_LEN_MASK;
-    }
-
-    if (total_usb_read_ > total_usb_write_) {
-        // 补数据
-        uint32_t num_bu = total_usb_read_ - total_usb_write_;
-        StereoSample_T copy = uac_buffer_[(uac_buf_wpos_ - 1) & UAC_BUFFER_LEN_MASK];
-        for (uint32_t i = 0; i < num_bu; ++i) {
-            uac_buffer_[uac_buf_wpos_] = copy;
-            ++uac_buf_wpos_;
-            uac_buf_wpos_ &= UAC_BUFFER_LEN_MASK;
-        }
-        total_usb_write_ = total_usb_read_;
-    }
-    else if (total_usb_write_ > total_usb_read_) {
-        // 删数据
-        uint32_t num_shan = total_usb_write_ - total_usb_read_;
-        uac_buf_wpos_ -= num_shan;
-        uac_buf_wpos_ &= UAC_BUFFER_LEN_MASK;
-        total_usb_write_ = total_usb_read_;
     }
 
     uac_len = (uac_buf_wpos_ - uac_buf_rpos + UAC_BUFFER_LEN) & UAC_BUFFER_LEN_MASK;
@@ -449,4 +546,56 @@ uint32_t Codec_GetDMALen(void) {
     num_dma = curr_dma_counter;
     num_dma_cplt_tx = 0;
     return count;
+}
+
+static void I2S2_PrescaleConfig(uint32_t v) {
+    I2S_Cmd(SPI2, DISABLE);
+    uint16_t odd = (v & 1) << 8;
+    uint16_t div = v >> 1;
+    uint16_t mlck = 1 << 9;
+    SPI2->I2SPR = odd | div | mlck;
+    I2S_Cmd(SPI2, ENABLE);
+}
+
+// pll3的倍频系数*2的值，正确的值需要/2
+static const uint32_t kPLL3MulTable[] = {
+    5, 25, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 40
+};
+#define MIN_I2S_PRESCALE 2
+#define MAX_I2S_PRESCALE 511
+#define NUM_PLL3_MUL 14
+void Codec_SetSampleRate(uint32_t sample_rate) {
+    sample_rate_ = sample_rate;
+    resample_ratio_inc_ = (float)resample_freq_inc_ / (float)sample_rate_;
+    resample_phase_ = 0.0f;
+    min_uac_len_ever = 0;
+    max_uac_len_ever = 0;
+
+    RCC_PLL3Cmd(DISABLE);
+    RCC_I2S2CLKConfig(1);
+    uint32_t prediv2 = ((RCC->CFGR2 & 0xf0) >> 4) + 1;
+    // uint32_t pll3_in = HSE_VALUE / prediv2;
+    // 在每个倍频系数下，寻找最接近的分频系数
+    float min_frequency_error = 3840000.0f;
+    uint32_t best_pll_mul = 0;
+    uint32_t best_i2s_div = 0;
+    for (uint32_t pll_mul = 0; pll_mul < NUM_PLL3_MUL; ++pll_mul) {
+        float fi2s_div = (float)HSE_VALUE / prediv2 * kPLL3MulTable[pll_mul] / 256 / sample_rate;
+        uint32_t i2s_div = (uint32_t)roundf(fi2s_div);
+        if (i2s_div < MIN_I2S_PRESCALE || i2s_div > MAX_I2S_PRESCALE) {
+            continue;
+        }
+        float frequency = (float)HSE_VALUE / prediv2 * kPLL3MulTable[pll_mul] / i2s_div / 256;
+        if (fabsf(frequency - sample_rate) < min_frequency_error) {
+            min_frequency_error = fabsf(frequency - sample_rate);
+            best_pll_mul = pll_mul;
+            best_i2s_div = i2s_div;
+        }
+    }
+    RCC_PLL3Config(best_pll_mul << 12);
+    I2S2_PrescaleConfig(best_i2s_div);
+    RCC_PLL3Cmd(ENABLE);
+
+    // wait for pll3
+    while ((RCC->CTLR & (1 << 29))) {}
 }

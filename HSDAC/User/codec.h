@@ -60,3 +60,4 @@ uint32_t Codec_GetUACBufferLen(void);
 void     Codec_CheckBuffer(void);
 
 uint32_t Codec_GetDMALen(void);
+void     Codec_SetSampleRate(uint32_t sample_rate);
