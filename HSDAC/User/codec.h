@@ -47,9 +47,6 @@ void            Codec_PollWrite(uint8_t reg, uint8_t val);
 uint8_t         Codec_PollRead(uint8_t reg);
 
 // clock sync
-void     Codec_ClockSync_Reset(void);
-uint32_t Codec_ClockSync_GetNumRead(void);
-void     Codec_SetResampleRatio(float ratio);
 void     Codec_Start(void);
 void     Codec_Stop(void);
 uint32_t Codec_GetDMASize(void);

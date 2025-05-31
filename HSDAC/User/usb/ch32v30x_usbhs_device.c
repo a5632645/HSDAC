@@ -338,7 +338,6 @@ static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
                             if (USBHS_SetupReqType & 0x80) {
                                 // get
                                 static const uint32_t fs_array[] = {
-                                    44100, 44100, 0,
                                     48000, 48000, 0,
                                     96000, 96000, 0,
                                     192000, 192000, 0,

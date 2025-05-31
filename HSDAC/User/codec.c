@@ -22,7 +22,7 @@ static volatile bool transfer_error_ = false;
 #define UAC_WPOS_INIT                 (UAC_BUFFER_LEN / 2)
 #define UAC_BUFFER_LEN_UP_THRESHOLD   (UAC_BUFFER_LEN * 60000 / 100000)
 #define UAC_BUFFER_LEN_DOWN_THRESHOLD (UAC_BUFFER_LEN * 40000 / 100000)
-static volatile int32_t dma_counter_ = 0;
+// static volatile int32_t dma_counter_ = 0;
 static StereoSample_T uac_buffer_[UAC_BUFFER_LEN] = {0};
 static uint32_t uac_buf_wpos_ = UAC_WPOS_INIT;
 static uint32_t uac_buf_rpos = 0;
@@ -32,8 +32,8 @@ static uint32_t uac_buf_rpos = 0;
 #define I2S_PRESCALE_MASK     0x1ff
 
 uint32_t num_usb = 0;
-uint32_t num_dma = 0;
-uint32_t num_dma_cplt_tx = 0;
+static uint32_t num_dma = 0;
+static uint32_t num_dma_cplt_tx = 0;
 static uint32_t sample_rate_ = 0;
 // float resample_ratio_ = 1.0f;
 // float resample_ratio_inc_ = 0.0f;
@@ -44,10 +44,10 @@ static uint32_t sample_rate_ = 0;
 // #define BUFFER_STATE_UNDERLOAD 2
 // static uint8_t last_buffer_state_ = 0;
 // static uint8_t ccc = 0;
-#define FEEDBACK_REPORT_PERIOD 8
-static uint8_t feedback_report_counter_ = 0;
+#define FEEDBACK_REPORT_PERIOD 32
+static uint32_t feedback_report_counter_ = 0;
 #define DMA_FREQUENCY_MEAURE_PERIOD 80
-static uint8_t dma_frequency_meausure_counter_ = 0;
+static uint32_t dma_frequency_meausure_counter_ = 0;
 uint32_t mesured_dma_sample_rate_ = 0;
 
 volatile uint32_t max_uac_len_ever = 0;
@@ -428,6 +428,8 @@ void Codec_Init(void) {
         i2s_dma_buffer_[i].left = Swap16(s * (1 << 31));
         i2s_dma_buffer_[i].right = Swap16(cs * (1 << 31));
     }
+
+    DMA_Cmd(DMA1_Channel5, ENABLE);
 }
 
 void Codec_DeInit(void) {
@@ -493,33 +495,14 @@ uint8_t Codec_PollRead(uint8_t reg) {
 }
 
 // ---------- clock sync ----------
-void Codec_ClockSync_Reset (void) {
-    dma_counter_ = I2S_DMA_BUFFER_SIZE * sizeof(StereoSample_T) / sizeof(uint16_t);
-    num_dma = dma_counter_;
-}
-
-uint32_t Codec_ClockSync_GetNumRead (void) {
-    int32_t curr_dma_counter = DMA_GetCurrDataCounter(DMA1_Channel5);
-    int32_t count = (dma_counter_ - curr_dma_counter) / 4;
-    if (count < 0) {
-        count += I2S_DMA_BUFFER_SIZE;
-    }
-    dma_counter_ = curr_dma_counter;
-    return count;
-}
-
-void Codec_SetResampleRatio (float ratio) {
-}
-
 void Codec_Start (void) {
-    Codec_ClockSync_Reset();
-    DMA_Cmd(DMA1_Channel5, ENABLE);
+    uac_buf_wpos_ = UAC_WPOS_INIT;
+    uac_buf_rpos = 0;
 }
 
 void Codec_Stop(void) {
-    DMA_Cmd(DMA1_Channel5, DISABLE);
-    uac_buf_wpos_ = UAC_WPOS_INIT;
-    uac_buf_rpos = 0;
+    uac_buf_rpos = uac_buf_wpos_;
+    memset(i2s_dma_buffer_, 0, sizeof(i2s_dma_buffer_));
 }
 
 uint32_t Codec_GetDMASize (void) {
@@ -561,9 +544,6 @@ uint32_t Codec_GetUACBufferLen (void) {
     return (uac_buf_wpos_ - uac_buf_rpos + UAC_BUFFER_LEN) & UAC_BUFFER_LEN_MASK;
 }
 
-void Codec_CheckBuffer(void) {
-}
-
 uint32_t Codec_GetDMALen(void) {
     int32_t curr_dma_counter = DMA_GetCurrDataCounter(DMA1_Channel5);
     int32_t count = num_dma - curr_dma_counter + I2S_DMA_BUFFER_SIZE * 4 * num_dma_cplt_tx;
@@ -582,47 +562,30 @@ static void I2S2_PrescaleConfig(uint32_t v) {
 }
 
 // pll3的倍频系数*2的值，正确的值需要/2
-static const uint32_t kPLL3MulTable[] = {
-    5, 25, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 40
-};
-#define MIN_I2S_PRESCALE 2
-#define MAX_I2S_PRESCALE 511
-#define NUM_PLL3_MUL 14
+// static const uint32_t kPLL3MulTable[] = {
+//     5, 25, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 40
+// };
+// #define MIN_I2S_PRESCALE 2
+// #define MAX_I2S_PRESCALE 511
+// #define NUM_PLL3_MUL 14
 void Codec_SetSampleRate(uint32_t sample_rate) {
     sample_rate_ = sample_rate;
     mesured_dma_sample_rate_ = sample_rate;
-    // resample_ratio_inc_ = (float)resample_freq_inc_ / (float)sample_rate_;
-    // resample_phase_ = 0.0f;
     min_uac_len_ever = 0xffffffff;
     max_uac_len_ever = 0;
 
-    RCC_PLL3Cmd(DISABLE);
-    RCC_I2S2CLKConfig(1);
-    uint32_t prediv2 = ((RCC->CFGR2 & 0xf0) >> 4) + 1;
-    // uint32_t pll3_in = HSE_VALUE / prediv2;
-    // 在每个倍频系数下，寻找最接近的分频系数
-    float min_frequency_error = 3840000.0f;
-    uint32_t best_pll_mul = 0;
-    uint32_t best_i2s_div = 0;
-    for (uint32_t pll_mul = 0; pll_mul < NUM_PLL3_MUL; ++pll_mul) {
-        float fi2s_div = (float)HSE_VALUE / prediv2 * kPLL3MulTable[pll_mul] / 256 / sample_rate;
-        uint32_t i2s_div = (uint32_t)roundf(fi2s_div);
-        if (i2s_div < MIN_I2S_PRESCALE || i2s_div > MAX_I2S_PRESCALE) {
-            continue;
-        }
-        float frequency = (float)HSE_VALUE / prediv2 * kPLL3MulTable[pll_mul] / i2s_div / 256;
-        if (fabsf(frequency - sample_rate) < min_frequency_error) {
-            min_frequency_error = fabsf(frequency - sample_rate);
-            best_pll_mul = pll_mul;
-            best_i2s_div = i2s_div;
-        }
+    switch (sample_rate) {
+    case 96000:
+        I2S2_PrescaleConfig(4);
+        break;
+    case 192000:
+        I2S2_PrescaleConfig(2);
+        break;
+    case 48000:
+    default:
+        I2S2_PrescaleConfig(8);
+        break;
     }
-    RCC_PLL3Config(best_pll_mul << 12);
-    I2S2_PrescaleConfig(best_i2s_div);
-    RCC_PLL3Cmd(ENABLE);
-
-    // wait for pll3
-    while ((RCC->CTLR & (1 << 29))) {}
 }
 
 void Codec_MeasureSampleRateAndReportFeedback(void) {
@@ -636,14 +599,14 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
 
     ++feedback_report_counter_;
     if (feedback_report_counter_ >= FEEDBACK_REPORT_PERIOD) {
-        // 1ms
+        // 5ms
         feedback_report_counter_ = 0;
         uint32_t uac_len = Codec_GetUACBufferLen();
         if (uac_len < UAC_BUFFER_LEN_DOWN_THRESHOLD) {
-            USBUAC_WriteFeedback(mesured_dma_sample_rate_ + 1000);
+            USBUAC_WriteFeedback(mesured_dma_sample_rate_ + 300);
         }
         else if (uac_len > UAC_BUFFER_LEN_UP_THRESHOLD) {
-            USBUAC_WriteFeedback(mesured_dma_sample_rate_ - 1000);
+            USBUAC_WriteFeedback(mesured_dma_sample_rate_ - 300);
         }
         else {
             USBUAC_WriteFeedback(mesured_dma_sample_rate_);
