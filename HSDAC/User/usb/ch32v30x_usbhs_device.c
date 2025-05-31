@@ -48,6 +48,7 @@ volatile uint8_t USBHS_DevEnumStatus;
 /* Endpoint Buffer */
 __attribute__ ((aligned (4))) uint8_t USBHS_EP0_Buf[DEF_USBD_UEP0_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP1_Rx_Buf[DEF_USB_EP1_HS_SIZE];
+__attribute__ ((aligned (4))) uint8_t USBHS_EP1_Tx_Buf[4];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP3_Tx_Buf[DEF_USB_EP3_HS_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP2_Tx_Buf[DEF_USB_EP2_HS_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP2_Rx_Buf[DEF_USB_EP2_HS_SIZE];
@@ -124,26 +125,30 @@ void USBHS_RCC_Init (void) {
  */
 void USBHS_Device_Endp_Init (void) {
 
-    USBHSD->ENDP_CONFIG = USBHS_UEP1_R_EN | USBHS_UEP2_T_EN | USBHS_UEP3_T_EN | USBHS_UEP3_R_EN;
-    USBHSD->ENDP_TYPE = USBHS_UEP1_R_TYPE;
+    USBHSD->ENDP_CONFIG = USBHS_UEP1_R_EN | USBHS_UEP1_T_EN 
+                        | USBHS_UEP2_T_EN
+                        | USBHS_UEP3_T_EN | USBHS_UEP3_R_EN;
+    USBHSD->ENDP_TYPE = USBHS_UEP1_R_TYPE | USBHS_UEP1_T_TYPE;
 
     USBHSD->UEP0_MAX_LEN = DEF_USBD_UEP0_SIZE;
     USBHSD->UEP1_MAX_LEN = DEF_USB_EP1_HS_SIZE;
     USBHSD->UEP2_MAX_LEN = DEF_USB_EP2_HS_SIZE;
     USBHSD->UEP3_MAX_LEN = DEF_USB_EP3_HS_SIZE;
 
-    USBHSD->UEP0_DMA = (uint32_t)(uint8_t *)USBHS_EP0_Buf;
-    USBHSD->UEP1_RX_DMA = (uint32_t)(uint8_t *)USBHS_EP1_Rx_Buf;
+    USBHSD->UEP0_DMA = (uint32_t)(uint8_t*)USBHS_EP0_Buf;
+    USBHSD->UEP1_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Rx_Buf;
+    USBHSD->UEP1_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Tx_Buf;
     USBHSD->UEP2_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Tx_Buf;
     USBHSD->UEP2_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Rx_Buf;
     USBHSD->UEP3_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP3_Tx_Buf;
-
 
     USBHSD->UEP0_TX_LEN = 0;
     USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_RES_NAK;
     USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_RES_ACK;
 
     USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
+    USBHSD->UEP1_TX_CTRL = USBHS_UEP_T_RES_NAK;
+    USBHSD->UEP1_TX_LEN = 0;
 
     USBHSD->UEP2_TX_LEN = 0;
     USBHSD->UEP2_TX_CTRL = USBHS_UEP_T_RES_NAK;
@@ -172,7 +177,7 @@ void USBHS_Device_Init (FunctionalState sta) {
         USBHSD->CONTROL &= ~USBHS_UC_RESET_SIE;
         USBHSD->HOST_CTRL = USBHS_UH_PHY_SUSPENDM;
         USBHSD->CONTROL = USBHS_UC_DMA_EN | USBHS_UC_INT_BUSY | USBHS_UC_SPEED_HIGH;
-        USBHSD->INT_EN = USBHS_UIE_SETUP_ACT | USBHS_UIE_TRANSFER | USBHS_UIE_DETECT | USBHS_UIE_SUSPEND;
+        USBHSD->INT_EN = USBHS_UIE_SETUP_ACT | USBHS_UIE_TRANSFER | USBHS_UIE_DETECT | USBHS_UIE_SUSPEND | USBHS_UIE_SOF_ACT;
         USBHS_Device_Endp_Init();
         USBHSD->CONTROL |= USBHS_UC_DEV_PU_EN;
 
@@ -496,6 +501,19 @@ uint32_t USBCDC_Write(const char* buf, uint32_t len) {
     return len;
 }
 
+void USBUAC_WriteFeedback(uint32_t local_fs) {
+    // turn sample rate into data_rate per micro frame
+    // 4(unused) 12.13 3(unused)
+    // local_fs = ((local_fs / 1000) << 16) | ((local_fs % 1000) * 65535 / 1000);
+    local_fs = ((local_fs / 1000) << 13) | ((local_fs % 1000) << 3);
+    USBHS_EP1_Tx_Buf[0] = local_fs;
+    USBHS_EP1_Tx_Buf[1] = local_fs >> 8;
+    USBHS_EP1_Tx_Buf[2] = local_fs >> 16;
+    USBHS_EP1_Tx_Buf[3] = local_fs >> 24;
+    USBHSD->UEP1_TX_LEN = 4;
+    USBHSD->UEP1_TX_CTRL = (USBHSD->UEP1_TX_CTRL & ~USBHS_UEP_T_RES_MASK) | USBHS_UEP_T_RES_ACK;
+}
+
 /*********************************************************************
  * @fn      USBHS_IRQHandler
  *
@@ -546,6 +564,14 @@ void USBHS_IRQHandler (void) {
                 /* test mode */
                 if (USBHS_Test_Flag & 0x80) {
                     USB_TestMode_Deal();
+                }
+                break;
+
+            // UAC反馈传输完成
+            case USBHS_UIS_TOKEN_IN | DEF_UEP1:
+                if (intst & USBHS_UIS_TOG_OK) {
+                    USBHSD->UEP1_TX_CTRL = (USBHSD->UEP1_TX_CTRL & ~USBHS_UEP_T_RES_MASK) | USBHS_UEP_T_RES_NAK;
+                    USBHSD->UEP1_TX_CTRL ^= USBHS_UEP_T_TOG_DATA1;
                 }
                 break;
 
@@ -633,8 +659,12 @@ void USBHS_IRQHandler (void) {
                 }
                 break;
 
-            // ep3 rx: CDC串口接收
+            // ep2 rx: CDC串口接收
             case USBHS_UIS_TOKEN_OUT | DEF_UEP2:
+            if (intst & USBHS_UIS_TOG_OK) {
+                USBHSD->UEP2_RX_CTRL ^= USBHS_UEP_R_TOG_DATA1;
+                USBHSD->UEP2_RX_CTRL = (USBHSD->UEP2_RX_CTRL & ~USBHS_UEP_R_RES_MASK) | USBHS_UEP_R_RES_ACK;
+            }
                 break;
 
             default:
@@ -645,6 +675,7 @@ void USBHS_IRQHandler (void) {
 
         /* Sof pack processing */
         case USBHS_UIS_TOKEN_SOF:
+            Codec_MeasureSampleRateAndReportFeedback();
             break;
 
         default:
@@ -819,6 +850,10 @@ void USBHS_IRQHandler (void) {
                         case (DEF_UEP1 | DEF_UEP_OUT):
                             /* Set End-point 1 OUT ACK */
                             USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
+                            break;
+
+                        case DEF_UEP1 | DEF_UEP_IN:
+                            USBHSD->UEP1_TX_CTRL = USBHS_UEP_T_RES_NAK;
                             break;
 
                         case (DEF_UEP2 | DEF_UEP_OUT):
@@ -1034,7 +1069,8 @@ void USBHS_IRQHandler (void) {
         } else {
             USBHS_DevSleepStatus &= ~0x02;
         }
-    } else {
+    }
+    else {
         /* other interrupts */
         USBHSD->INT_FG = intflag;
     }

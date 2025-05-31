@@ -9,6 +9,7 @@
 #include <math.h>
 #include <string.h>
 #include "tick.h"
+#include "usb/ch32v30x_usbhs_device.h"
 
 #define I2S_DMA_BLOCK_SIZE 192
 #define I2S_DMA_BUFFER_SIZE (I2S_DMA_BLOCK_SIZE * 2)
@@ -34,49 +35,54 @@ uint32_t num_usb = 0;
 uint32_t num_dma = 0;
 uint32_t num_dma_cplt_tx = 0;
 static uint32_t sample_rate_ = 0;
-float resample_ratio_ = 1.0f;
-float resample_ratio_inc_ = 0.0f;
-uint32_t resample_freq_inc_ = 5;
-static float resample_phase_ = 0.0f;
+// float resample_ratio_ = 1.0f;
+// float resample_ratio_inc_ = 0.0f;
+// uint32_t resample_freq_inc_ = 5;
+// static float resample_phase_ = 0.0f;
 
-#define BUFFER_STATE_OVERLOAD 1
-#define BUFFER_STATE_UNDERLOAD 2
-static uint8_t last_buffer_state_ = 0;
-static uint8_t ccc = 0;
+// #define BUFFER_STATE_OVERLOAD 1
+// #define BUFFER_STATE_UNDERLOAD 2
+// static uint8_t last_buffer_state_ = 0;
+// static uint8_t ccc = 0;
+#define FEEDBACK_REPORT_PERIOD 8
+static uint8_t feedback_report_counter_ = 0;
+#define DMA_FREQUENCY_MEAURE_PERIOD 80
+static uint8_t dma_frequency_meausure_counter_ = 0;
+uint32_t mesured_dma_sample_rate_ = 0;
 
 volatile uint32_t max_uac_len_ever = 0;
 volatile uint32_t min_uac_len_ever = 0xffffffff;
 #define MIN(a, b) ((a) > (b) ? (b) : (a))
 
-static void IncPrescale(uint16_t* s) {
-    uint16_t tmp = *s;
-    uint16_t odd = 0;
-    uint16_t div = tmp & I2S_PRESCALE_DIV_MASK;
-    if (tmp & I2S_PRESCALE_ODD_MASK) {
-        odd = 0;
-        ++div;
-    }
-    else {
-        odd = I2S_PRESCALE_ODD_MASK;
-    }
-    tmp = (tmp & ~I2S_PRESCALE_MASK) | odd | div;
-    *s = tmp;
-}
+// static void IncPrescale(uint16_t* s) {
+//     uint16_t tmp = *s;
+//     uint16_t odd = 0;
+//     uint16_t div = tmp & I2S_PRESCALE_DIV_MASK;
+//     if (tmp & I2S_PRESCALE_ODD_MASK) {
+//         odd = 0;
+//         ++div;
+//     }
+//     else {
+//         odd = I2S_PRESCALE_ODD_MASK;
+//     }
+//     tmp = (tmp & ~I2S_PRESCALE_MASK) | odd | div;
+//     *s = tmp;
+// }
 
-static void DecPrescale(uint16_t* s) {
-    uint16_t tmp = *s;
-    uint16_t odd = 0;
-    uint16_t div = tmp & I2S_PRESCALE_DIV_MASK;
-    if (tmp & I2S_PRESCALE_ODD_MASK) {
-        odd = 0;
-    }
-    else {
-        odd = I2S_PRESCALE_ODD_MASK;
-        --div;
-    }
-    tmp = (tmp & ~I2S_PRESCALE_MASK) | odd | div;
-    *s = tmp;
-}
+// static void DecPrescale(uint16_t* s) {
+//     uint16_t tmp = *s;
+//     uint16_t odd = 0;
+//     uint16_t div = tmp & I2S_PRESCALE_DIV_MASK;
+//     if (tmp & I2S_PRESCALE_ODD_MASK) {
+//         odd = 0;
+//     }
+//     else {
+//         odd = I2S_PRESCALE_ODD_MASK;
+//         --div;
+//     }
+//     tmp = (tmp & ~I2S_PRESCALE_MASK) | odd | div;
+//     *s = tmp;
+// }
 
 static void DMA_Tx_Init(DMA_Channel_TypeDef* DMA_CHx, u32 ppadr, u32 memadr, u16 bufsize) {
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
@@ -184,109 +190,127 @@ void DMA1_Channel5_IRQHandler(void) {
     }
     if (DMA_GetFlagStatus(DMA1_FLAG_TC5) == SET) {
         DMA_ClearFlag(DMA1_FLAG_TC5);
-        ++num_dma_cplt_tx;
         NVIC_DisableIRQ(USBHS_IRQn);
+        ++num_dma_cplt_tx;
 
         StereoSample_T* block_to_fill_ = &i2s_dma_buffer_[I2S_DMA_BLOCK_SIZE];
-        uint32_t bck_rpos = uac_buf_rpos;
-        uint32_t resampled_len = 0;
-
-        // resample buffer
-        for (uint32_t i = 0; i < I2S_DMA_BLOCK_SIZE; ++i) {
-            block_to_fill_->left = uac_buffer_[bck_rpos].left;
-            block_to_fill_->right = uac_buffer_[bck_rpos].right;
+        uint32_t uac_len = Codec_GetUACBufferLen();
+        uint32_t read_len = uac_len > I2S_DMA_BLOCK_SIZE ? I2S_DMA_BLOCK_SIZE : uac_len;
+        while (read_len--) {
+            *block_to_fill_ = uac_buffer_[uac_buf_rpos];
             ++block_to_fill_;
-            resample_phase_ += resample_ratio_;
-            if (resample_phase_ >= 1.0f) {
-                uint32_t iinc = (uint32_t)resample_phase_;
-                bck_rpos = (bck_rpos + iinc) & UAC_BUFFER_LEN_MASK;
-                resample_phase_ -= iinc;
-                resampled_len += iinc;
-            }
+            ++uac_buf_rpos;
+            uac_buf_rpos &= UAC_BUFFER_LEN_MASK;
         }
 
-        // process len
-        uint32_t len = Codec_GetUACBufferLen();
-        if (resampled_len > len) {
-            resampled_len = len;
-        }
-        uac_buf_rpos = (uac_buf_rpos + resampled_len) & UAC_BUFFER_LEN_MASK;
+        // uint32_t bck_rpos = uac_buf_rpos;
+        // uint32_t resampled_len = 0;
+
+        // // resample buffer
+        // for (uint32_t i = 0; i < I2S_DMA_BLOCK_SIZE; ++i) {
+        //     block_to_fill_->left = uac_buffer_[bck_rpos].left;
+        //     block_to_fill_->right = uac_buffer_[bck_rpos].right;
+        //     ++block_to_fill_;
+        //     resample_phase_ += resample_ratio_;
+        //     if (resample_phase_ >= 1.0f) {
+        //         uint32_t iinc = (uint32_t)resample_phase_;
+        //         bck_rpos = (bck_rpos + iinc) & UAC_BUFFER_LEN_MASK;
+        //         resample_phase_ -= iinc;
+        //         resampled_len += iinc;
+        //     }
+        // }
+
+        // // process len
+        // uint32_t len = Codec_GetUACBufferLen();
+        // if (resampled_len > len) {
+        //     resampled_len = len;
+        // }
+        // uac_buf_rpos = (uac_buf_rpos + resampled_len) & UAC_BUFFER_LEN_MASK;
     }
     if (DMA_GetFlagStatus(DMA1_FLAG_HT5) == SET) {
         DMA_ClearFlag(DMA1_FLAG_HT5);
         NVIC_DisableIRQ(USBHS_IRQn);
 
         StereoSample_T* block_to_fill_ = &i2s_dma_buffer_[0];
-        uint32_t bck_rpos = uac_buf_rpos;
-        uint32_t resampled_len = 0;
-
-        // resample buffer
-        for (uint32_t i = 0; i < I2S_DMA_BLOCK_SIZE; ++i) {
-            block_to_fill_->left = uac_buffer_[bck_rpos].left;
-            block_to_fill_->right = uac_buffer_[bck_rpos].right;
+        uint32_t uac_len = Codec_GetUACBufferLen();
+        uint32_t read_len = uac_len > I2S_DMA_BLOCK_SIZE ? I2S_DMA_BLOCK_SIZE : uac_len;
+        while (read_len--) {
+            *block_to_fill_ = uac_buffer_[uac_buf_rpos];
             ++block_to_fill_;
-            resample_phase_ += resample_ratio_;
-            if (resample_phase_ >= 1.0f) {
-                uint32_t iinc = (uint32_t)resample_phase_;
-                bck_rpos = (bck_rpos + iinc) & UAC_BUFFER_LEN_MASK;
-                resample_phase_ -= iinc;
-                resampled_len += iinc;
-            }
+            ++uac_buf_rpos;
+            uac_buf_rpos &= UAC_BUFFER_LEN_MASK;
         }
 
-        // process len
-        uint32_t len = Codec_GetUACBufferLen();
-        if (resampled_len > len) {
-            resampled_len = len;
-        }
-        uac_buf_rpos = (uac_buf_rpos + resampled_len) & UAC_BUFFER_LEN_MASK;
+        // uint32_t bck_rpos = uac_buf_rpos;
+        // uint32_t resampled_len = 0;
+
+        // // resample buffer
+        // for (uint32_t i = 0; i < I2S_DMA_BLOCK_SIZE; ++i) {
+        //     block_to_fill_->left = uac_buffer_[bck_rpos].left;
+        //     block_to_fill_->right = uac_buffer_[bck_rpos].right;
+        //     ++block_to_fill_;
+        //     resample_phase_ += resample_ratio_;
+        //     if (resample_phase_ >= 1.0f) {
+        //         uint32_t iinc = (uint32_t)resample_phase_;
+        //         bck_rpos = (bck_rpos + iinc) & UAC_BUFFER_LEN_MASK;
+        //         resample_phase_ -= iinc;
+        //         resampled_len += iinc;
+        //     }
+        // }
+
+        // // process len
+        // uint32_t len = Codec_GetUACBufferLen();
+        // if (resampled_len > len) {
+        //     resampled_len = len;
+        // }
+        // uac_buf_rpos = (uac_buf_rpos + resampled_len) & UAC_BUFFER_LEN_MASK;
     }
 
     // process underload/overload
-    if (Tick_GetTick() - ccc > 20) {
-        ccc = Tick_GetTick();
+    // if (Tick_GetTick() - ccc > 20) {
+    //     ccc = Tick_GetTick();
 
-        uint32_t uac_len = Codec_GetUACBufferLen();
-        if (uac_len > UAC_BUFFER_LEN_UP_THRESHOLD) {
-            // if (last_buffer_state_ == BUFFER_STATE_OVERLOAD) {
-            //     // 连续过载，直接增加重采样系数
-            //     resample_ratio_ += resample_ratio_inc_;
-            // }
-            // else if (last_buffer_state_ == BUFFER_STATE_UNDERLOAD) {
-            //     // 欠载之后又过载，减小系数增加，增加系数
-            //     resample_freq_inc_ /= 2;
-            //     resample_ratio_inc_ = (float)resample_freq_inc_ / (float)sample_rate_;
-            //     resample_ratio_ += resample_ratio_inc_;
-            //     last_buffer_state_ = BUFFER_STATE_OVERLOAD;
-            // }
-            // else {
-            //     // 我不知道
-            //     resample_ratio_ += resample_ratio_inc_;
-            // }
-            // last_buffer_state_ = BUFFER_STATE_OVERLOAD;
-            resample_ratio_ += resample_ratio_inc_;
-        }
-        else if (uac_len < UAC_BUFFER_LEN_DOWN_THRESHOLD) {
-            // if (last_buffer_state_ == BUFFER_STATE_OVERLOAD) {
-            //     // 过载之后又欠载，减小系数增加，减小系数
-            //     resample_freq_inc_ /= 2;
-            //     resample_ratio_inc_ = (float)resample_freq_inc_ / (float)sample_rate_;
-            //     resample_ratio_ -= resample_ratio_inc_;
-            // }
-            // else if (last_buffer_state_ == BUFFER_STATE_UNDERLOAD) {
-            //     // 连续欠载，直接减小重采样系数
-            //     resample_ratio_ -= resample_ratio_inc_;
-            // }
-            // else {
-            //     // 我不知道
-            //     resample_ratio_ -= resample_ratio_inc_;
-            // }
-            // last_buffer_state_ = BUFFER_STATE_UNDERLOAD;
-            resample_ratio_ -= resample_ratio_inc_;
-        }
-    }
+    //     uint32_t uac_len = Codec_GetUACBufferLen();
+    //     if (uac_len > UAC_BUFFER_LEN_UP_THRESHOLD) {
+    //         // if (last_buffer_state_ == BUFFER_STATE_OVERLOAD) {
+    //         //     // 连续过载，直接增加重采样系数
+    //         //     resample_ratio_ += resample_ratio_inc_;
+    //         // }
+    //         // else if (last_buffer_state_ == BUFFER_STATE_UNDERLOAD) {
+    //         //     // 欠载之后又过载，减小系数增加，增加系数
+    //         //     resample_freq_inc_ /= 2;
+    //         //     resample_ratio_inc_ = (float)resample_freq_inc_ / (float)sample_rate_;
+    //         //     resample_ratio_ += resample_ratio_inc_;
+    //         //     last_buffer_state_ = BUFFER_STATE_OVERLOAD;
+    //         // }
+    //         // else {
+    //         //     // 我不知道
+    //         //     resample_ratio_ += resample_ratio_inc_;
+    //         // }
+    //         // last_buffer_state_ = BUFFER_STATE_OVERLOAD;
+    //         resample_ratio_ += resample_ratio_inc_;
+    //     }
+    //     else if (uac_len < UAC_BUFFER_LEN_DOWN_THRESHOLD) {
+    //         // if (last_buffer_state_ == BUFFER_STATE_OVERLOAD) {
+    //         //     // 过载之后又欠载，减小系数增加，减小系数
+    //         //     resample_freq_inc_ /= 2;
+    //         //     resample_ratio_inc_ = (float)resample_freq_inc_ / (float)sample_rate_;
+    //         //     resample_ratio_ -= resample_ratio_inc_;
+    //         // }
+    //         // else if (last_buffer_state_ == BUFFER_STATE_UNDERLOAD) {
+    //         //     // 连续欠载，直接减小重采样系数
+    //         //     resample_ratio_ -= resample_ratio_inc_;
+    //         // }
+    //         // else {
+    //         //     // 我不知道
+    //         //     resample_ratio_ -= resample_ratio_inc_;
+    //         // }
+    //         // last_buffer_state_ = BUFFER_STATE_UNDERLOAD;
+    //         resample_ratio_ -= resample_ratio_inc_;
+    //     }
+    // }
 
-    resample_ratio_ = resample_ratio_ * 0.999f + 1.0f * 0.001f;
+    // resample_ratio_ = resample_ratio_ * 0.999f + 1.0f * 0.001f;
 
     NVIC_EnableIRQ(USBHS_IRQn);
 }
@@ -566,9 +590,10 @@ static const uint32_t kPLL3MulTable[] = {
 #define NUM_PLL3_MUL 14
 void Codec_SetSampleRate(uint32_t sample_rate) {
     sample_rate_ = sample_rate;
-    resample_ratio_inc_ = (float)resample_freq_inc_ / (float)sample_rate_;
-    resample_phase_ = 0.0f;
-    min_uac_len_ever = 0;
+    mesured_dma_sample_rate_ = sample_rate;
+    // resample_ratio_inc_ = (float)resample_freq_inc_ / (float)sample_rate_;
+    // resample_phase_ = 0.0f;
+    min_uac_len_ever = 0xffffffff;
     max_uac_len_ever = 0;
 
     RCC_PLL3Cmd(DISABLE);
@@ -598,4 +623,30 @@ void Codec_SetSampleRate(uint32_t sample_rate) {
 
     // wait for pll3
     while ((RCC->CTLR & (1 << 29))) {}
+}
+
+void Codec_MeasureSampleRateAndReportFeedback(void) {
+    ++dma_frequency_meausure_counter_;
+    if (dma_frequency_meausure_counter_ >= DMA_FREQUENCY_MEAURE_PERIOD) {
+        // 10ms
+        dma_frequency_meausure_counter_ = 0;
+        uint32_t dma_bck = Codec_GetDMALen();
+        mesured_dma_sample_rate_ = dma_bck * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD / 8)) / 4;
+    }
+
+    ++feedback_report_counter_;
+    if (feedback_report_counter_ >= FEEDBACK_REPORT_PERIOD) {
+        // 1ms
+        feedback_report_counter_ = 0;
+        uint32_t uac_len = Codec_GetUACBufferLen();
+        if (uac_len < UAC_BUFFER_LEN_DOWN_THRESHOLD) {
+            USBUAC_WriteFeedback(mesured_dma_sample_rate_ + 1000);
+        }
+        else if (uac_len > UAC_BUFFER_LEN_UP_THRESHOLD) {
+            USBUAC_WriteFeedback(mesured_dma_sample_rate_ - 1000);
+        }
+        else {
+            USBUAC_WriteFeedback(mesured_dma_sample_rate_);
+        }
+    }
 }
