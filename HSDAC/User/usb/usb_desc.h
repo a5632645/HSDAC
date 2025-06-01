@@ -17,7 +17,7 @@
 /******************************************************************************/
 /* global define */
 /* file version */
-#define DEF_FILE_VERSION 0x02
+#define DEF_FILE_VERSION 0x03
 /* usb device info define  */
 #define DEF_USB_VID 0x1A86
 #define DEF_USB_PID 0x0011

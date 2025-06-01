@@ -66,7 +66,7 @@
 					"other_target_flags": ""
 				},
 				"optimization": {
-					"level": "none",
+					"level": "most",
 					"message_length": true,
 					"char_is_signed": true,
 					"function_sections": true,
@@ -93,7 +93,7 @@
 					"warn_on_various_unused_elements": true,
 					"warn_on_uninitialized_variables": true,
 					"enable_all_common_warnings": true,
-					"enable_extra_warnings": false,
+					"enable_extra_warnings": true,
 					"warn_on_undeclared_global_function": false,
 					"warn_on_implicit_conversions": false,
 					"warn_if_pointer_arthmetic": false,

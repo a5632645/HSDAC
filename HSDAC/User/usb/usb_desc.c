@@ -184,8 +184,8 @@ const uint8_t MyCfgDescr_HS[] =
     0x81,        // bEndpointAddress (IN, EP1)
     0x11,        // bmAttributes (Isochronous, async, explimit feedback)
     USB_WORD(4), // wMaxPacketSize (4 bytes)
-    0x01,        // bInterval (2^(X-1) = 4 frame, 1ms)
-    0x06,        // refresh, 1ms
+    0x02,        // bInterval
+    0x06,        // refresh, 4ms
     0x00,        // sync address
 
     // ---------- usb cdc as debug ----------
@@ -254,12 +254,12 @@ const uint8_t MyCfgDescr_HS[] =
     0x00,       // string id
 
     /* Endpoint descriptor */
-    0x07,
-    0x05,
-    0x02,
-    0x02,
-    USB_WORD(DEF_USB_EP2_HS_SIZE),
-    0x00,
+    0x07,       // length
+    0x05,       // desc type (ENDPOINT)
+    0x02,       // OUT EP2
+    0x02,       // attribute, bluck
+    USB_WORD(DEF_USB_EP2_HS_SIZE), // size
+    0x04,       // inverval
 
     /* Endpoint descriptor */
     0x07,
@@ -267,7 +267,7 @@ const uint8_t MyCfgDescr_HS[] =
     0x82,
     0x02,
     USB_WORD(DEF_USB_EP2_HS_SIZE),
-    0x00,
+    0x04,
 };
 
 /* Configuration Descriptor */

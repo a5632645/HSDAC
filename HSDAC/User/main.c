@@ -17,13 +17,14 @@ static void ES9018K_Init(void) {
     Codec_PollWrite(1, 0b10000000);
 }
 
-extern uint32_t num_usb;
 extern volatile uint32_t max_uac_len_ever;
 extern volatile uint32_t min_uac_len_ever;
 // extern float resample_ratio_;
 // extern float resample_ratio_inc_;
 // extern uint32_t resample_freq_inc_;
 extern uint32_t mesured_dma_sample_rate_;
+extern uint32_t mesured_usb_sample_rate_;
+extern float report_fs_;
 
 int main(void) {
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
@@ -41,14 +42,8 @@ int main(void) {
         if ((ct - t) > 100) {
             t = ct;
 
-            uint32_t usb_bck = num_usb * 4;
-            num_usb = 0;
-            // uint32_t dma_bck = Codec_GetDMALen();
-            uint32_t usb_fs = usb_bck * 10 / 4;
-            // uint32_t dma_fs = dma_bck * 10 / 4;
-
             if (USBHS_DevEnumStatus) {
-                printf("[fs]usb: %luHz, dma: %luHz\n\r", usb_fs, mesured_dma_sample_rate_);
+                printf("[fs]usb: %luHz, dma: %luHz, fb:%luHz\n\r", mesured_usb_sample_rate_, mesured_dma_sample_rate_, (uint32_t)report_fs_);
                 // printf("[rs]fs: %luHz, ratio_inc: %lu, ratio_freq: %lu\n\r", (uint32_t)(dma_fs * resample_ratio_), (int32_t)(resample_ratio_inc_ * 1000000), resample_freq_inc_);
                 printf("[uac]len: %lu, min: %lu, max:%lu\n\r\n\r", Codec_GetUACBufferLen(), min_uac_len_ever, max_uac_len_ever);
             }
