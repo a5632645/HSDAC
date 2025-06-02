@@ -66,8 +66,8 @@
 					"other_target_flags": ""
 				},
 				"optimization": {
-					"level": "most",
-					"message_length": true,
+					"level": "none",
+					"message_length": false,
 					"char_is_signed": true,
 					"function_sections": true,
 					"data_sections": true,
@@ -609,7 +609,7 @@
 		"mcutype": "CH32V30x",
 		"address": "0x08000000",
 		"target_path": "obj\\HSDAC.hex",
-		"clkSpeed": "High",
+		"clkSpeed": "Middle",
 		"debug_interface_mode": "1-wire serial",
 		"erase": false,
 		"program": true,

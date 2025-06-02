@@ -8,15 +8,15 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-#include "tick.h"
 #include "usb/ch32v30x_usbhs_device.h"
 
-#define I2S_DMA_BLOCK_SIZE 192
+#define I2S_DMA_BLOCK_SIZE 256
 #define I2S_DMA_BUFFER_SIZE (I2S_DMA_BLOCK_SIZE * 2)
+#define I2S_DMA_BUFFER_SIZE_MASK (I2S_DMA_BLOCK_SIZE * 2 - 1)
 static StereoSample_T i2s_dma_buffer_[I2S_DMA_BUFFER_SIZE] = {0};
+static int32_t last_i2s_dma_wpos_ = 0;
+static int32_t dma_data_couter_ = 0;
 static volatile bool transfer_error_ = false;
-
-// clock sync
 #define UAC_BUFFER_LEN 2048
 #define UAC_BUFFER_LEN_MASK 2047
 #define UAC_WPOS_INIT                 (UAC_BUFFER_LEN / 2)
@@ -34,7 +34,7 @@ static uint32_t num_usb = 0;
 static uint32_t num_dma = 0;
 static uint32_t num_dma_cplt_tx = 0;
 static uint32_t sample_rate_ = 0;
-#define FEEDBACK_REPORT_PERIOD 32
+#define FEEDBACK_REPORT_PERIOD 64
 static uint32_t feedback_report_counter_ = 0;
 #define DMA_FREQUENCY_MEAURE_PERIOD 80
 static uint32_t dma_frequency_meausure_counter_ = 0;
@@ -73,10 +73,11 @@ static void DMA_Tx_Init(DMA_Channel_TypeDef* DMA_CHx, u32 ppadr, u32 memadr, u16
     NVIC_Init(&dma_nvic);
 
     DMA_ClearITPendingBit(DMA1_IT_TC5);
-    DMA_ClearITPendingBit(DMA1_IT_HT5);
+    // DMA_ClearITPendingBit(DMA1_IT_HT5);
     DMA_ClearITPendingBit(DMA1_IT_TE5);
 
-    DMA_ITConfig(DMA1_Channel5, DMA_IT_HT | DMA_IT_TC | DMA_IT_TE, ENABLE);
+    // DMA_ITConfig(DMA1_Channel5, DMA_IT_HT | DMA_IT_TC | DMA_IT_TE, ENABLE);
+    DMA_ITConfig(DMA1_Channel5, DMA_IT_TC | DMA_IT_TE, ENABLE);
 }
 
 static void I2S2_Init(void) {
@@ -132,7 +133,6 @@ static void I2C2_Init(void) {
 
 void DMA1_Channel5_IRQHandler(void) WCH_FAST_INTERRUPT;
 void DMA1_Channel5_IRQHandler(void) {
-    NVIC_DisableIRQ(USBHS_IRQn);
     if (DMA_GetFlagStatus(DMA1_FLAG_TE5) == SET) {
         DMA_ClearFlag(DMA1_FLAG_TE5);
         DMA_Cmd(DMA1_Channel5, DISABLE);
@@ -141,119 +141,41 @@ void DMA1_Channel5_IRQHandler(void) {
     }
     if (DMA_GetFlagStatus(DMA1_FLAG_TC5) == SET) {
         DMA_ClearFlag(DMA1_FLAG_TC5);
+        NVIC_DisableIRQ(USBHS_IRQn);
         ++num_dma_cplt_tx;
-        StereoSample_T* block_to_fill_ = &i2s_dma_buffer_[I2S_DMA_BLOCK_SIZE];
-        uint32_t uac_len = Codec_GetUACBufferLen();
-        uint32_t read_len = uac_len > I2S_DMA_BLOCK_SIZE ? I2S_DMA_BLOCK_SIZE : uac_len;
-        while (read_len--) {
-            *block_to_fill_ = uac_buffer_[uac_buf_rpos];
-            ++block_to_fill_;
-            ++uac_buf_rpos;
-            uac_buf_rpos &= UAC_BUFFER_LEN_MASK;
-        }
+        NVIC_EnableIRQ(USBHS_IRQn);
+        // StereoSample_T* block_to_fill_ = &i2s_dma_buffer_[I2S_DMA_BLOCK_SIZE];
+        // uint32_t uac_len = Codec_GetUACBufferLen();
+        // uint32_t read_len = uac_len > I2S_DMA_BLOCK_SIZE ? I2S_DMA_BLOCK_SIZE : uac_len;
+        // while (read_len--) {
+        //     *block_to_fill_ = uac_buffer_[uac_buf_rpos];
+        //     ++block_to_fill_;
+        //     ++uac_buf_rpos;
+        //     uac_buf_rpos &= UAC_BUFFER_LEN_MASK;
+        // }
     }
-    if (DMA_GetFlagStatus(DMA1_FLAG_HT5) == SET) {
-        DMA_ClearFlag(DMA1_FLAG_HT5);
-        StereoSample_T* block_to_fill_ = &i2s_dma_buffer_[0];
-        uint32_t uac_len = Codec_GetUACBufferLen();
-        uint32_t read_len = uac_len > I2S_DMA_BLOCK_SIZE ? I2S_DMA_BLOCK_SIZE : uac_len;
-        while (read_len--) {
-            *block_to_fill_ = uac_buffer_[uac_buf_rpos];
-            ++block_to_fill_;
-            ++uac_buf_rpos;
-            uac_buf_rpos &= UAC_BUFFER_LEN_MASK;
-        }
-    }
-    NVIC_EnableIRQ(USBHS_IRQn);
-}
-
-static I2CFuture_T* i2c_future_ = NULL;
-void I2C2_EV_IRQHandler(void) WCH_FAST_INTERRUPT;
-void I2C2_EV_IRQHandler(void) {
-    if (I2C_GetITStatus(I2C2, I2C_IT_SB) == SET) {
-        switch (i2c_future_->state) {
-        case I2C_FUTURE_INIT_TX:
-            I2C_Send7bitAddress(I2C2, 0x90, I2C_Direction_Transmitter);
-            i2c_future_->state = I2C_FUTURE_ADDRESS_SENDED_TX;
-            break;
-        case I2C_FUTURE_INIT_RX:
-            I2C_Send7bitAddress(I2C2, 0x90, I2C_Direction_Transmitter);
-            i2c_future_->state = I2C_FUTURE_ADDRESS_SENDED_RX;
-            break;
-        case I2C_FUTURE_INIT_RX_RX:
-            I2C_Send7bitAddress(I2C2, 0x90, I2C_Direction_Receiver);
-            i2c_future_->state = I2C_FUTURE_ADDRESS_SENDED_RX_RX;
-            break;
-        }
-    }
-    else if (I2C_GetITStatus(I2C2, I2C_IT_ADDR) == SET) {
-        volatile uint16_t no_optimise = I2C_ReadRegister(I2C2, I2C_Register_STAR1);
-        no_optimise = I2C_ReadRegister(I2C2, I2C_Register_STAR2);
-        (void)no_optimise;
-    }
-    else if (I2C_GetITStatus(I2C2, I2C_IT_TXE) == SET) {
-        switch (i2c_future_->state) {
-        case I2C_FUTURE_ADDRESS_SENDED_TX:
-            I2C_SendData(I2C2, i2c_future_->reg);
-            i2c_future_->state = I2C_FUTURE_REG_SENDED_TX;
-            break;
-        case I2C_FUTURE_ADDRESS_SENDED_RX:
-            I2C_SendData(I2C2, i2c_future_->reg);
-            i2c_future_->state = I2C_FUTURE_REG_SENDED_RX;
-            break;
-        case I2C_FUTURE_REG_SENDED_RX:
-            I2C_GenerateSTART(I2C2, ENABLE);
-            I2C_SendData(I2C2, 0xff);
-            i2c_future_->state = I2C_FUTURE_INIT_RX_RX;
-            break;
-        case I2C_FUTURE_REG_SENDED_TX:
-            I2C_SendData(I2C2, i2c_future_->val);
-            i2c_future_->state = I2C_FUTURE_VAL_SENDED_TX;
-            break;
-        case I2C_FUTURE_VAL_SENDED_TX:
-            I2C_GenerateSTOP(I2C2, ENABLE);
-            I2C_SendData(I2C2, 0xff);
-            i2c_future_->state = I2C_FUTURE_COMPLETED;
-            i2c_future_->error_code = I2C_EC_NO_ERROR;
-            break;
-        default:
-            break;
-        }
-    }
-    else if (I2C_GetITStatus(I2C2, I2C_IT_RXNE) == SET) {
-        if (i2c_future_->state == I2C_FUTURE_ADDRESS_SENDED_RX_RX) {
-            i2c_future_->val = I2C_ReceiveData(I2C2);
-            i2c_future_->state = I2C_FUTURE_COMPLETED;
-            i2c_future_->error_code = I2C_EC_NO_ERROR;
-            I2C_NACKPositionConfig(I2C2, I2C_NACKPosition_Next);
-            I2C_GenerateSTOP(I2C2, ENABLE);
-        }
-    }
-}
-
-void I2C2_ER_IRQHandler(void) WCH_FAST_INTERRUPT;
-void I2C2_ER_IRQHandler(void) {
-    if (I2C_GetITStatus(I2C2, I2C_IT_AF) == SET) {
-        i2c_future_->error_code = I2C_EC_NACK;
-        I2C_ClearITPendingBit(I2C2, I2C_IT_AF);
-    }
-    else {
-        i2c_future_->error_code = I2C_EC_UNKOWN;
-    }
-    I2C_GenerateSTOP(I2C2, ENABLE);
-    i2c_future_->state = I2C_FUTURE_COMPLETED;
+    // if (DMA_GetFlagStatus(DMA1_FLAG_HT5) == SET) {
+    //     DMA_ClearFlag(DMA1_FLAG_HT5);
+    //     // StereoSample_T* block_to_fill_ = &i2s_dma_buffer_[0];
+    //     // uint32_t uac_len = Codec_GetUACBufferLen();
+    //     // uint32_t read_len = uac_len > I2S_DMA_BLOCK_SIZE ? I2S_DMA_BLOCK_SIZE : uac_len;
+    //     // while (read_len--) {
+    //     //     *block_to_fill_ = uac_buffer_[uac_buf_rpos];
+    //     //     ++block_to_fill_;
+    //     //     ++uac_buf_rpos;
+    //     //     uac_buf_rpos &= UAC_BUFFER_LEN_MASK;
+    //     // }
+    // }
 }
 
 // ========================================
 // public
 // ========================================
 static int32_t Swap16(int32_t x) {
-    volatile int32_t ret = 0;
-    volatile int16_t* a = &x;
-    volatile int16_t* b = &ret;
-    b[0] = a[1];
-    b[1] = a[0];
-    return ret;
+    uint32_t r = x;
+    uint32_t up = r & 0xffff;
+    uint32_t down = r >> 16;
+    return down | (up << 16);
 }
 
 void Codec_Init(void) {
@@ -298,18 +220,6 @@ bool Codec_IsTransferError(void) {
 
 uint32_t Codec_GetBlockSize(void) {
     return I2S_DMA_BLOCK_SIZE;
-}
-
-void Codec_Write(I2CFuture_T* pstate) {
-    i2c_future_ = pstate;
-    i2c_future_->state = I2C_FUTURE_INIT_TX;
-    I2C_GenerateSTART(I2C2, ENABLE);
-}
-
-void Codec_Read(I2CFuture_T* pstate) {
-    i2c_future_ = pstate;
-    i2c_future_->state = I2C_FUTURE_INIT_RX;
-    I2C_GenerateSTART(I2C2, ENABLE);
 }
 
 void Codec_PollWrite(uint8_t reg, uint8_t val) {
@@ -370,14 +280,38 @@ bool Codec_IsDMAStart (void) {
 }
 
 void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
-    uint32_t num_input_stereo_samples = len / sizeof(StereoSample_T);
-    num_usb += num_input_stereo_samples;
+    int32_t curr_dma_pos = (I2S_DMA_BUFFER_SIZE * 4 - DMA_GetCurrDataCounter(DMA1_Channel5)) / 4;
+    uint32_t dma_can_write = (curr_dma_pos - last_i2s_dma_wpos_) & I2S_DMA_BUFFER_SIZE_MASK;
 
     uint32_t uac_len = (uac_buf_wpos_ - uac_buf_rpos + UAC_BUFFER_LEN) & UAC_BUFFER_LEN_MASK;
+    uint32_t uac_to_dma = uac_len > dma_can_write ? dma_can_write : uac_len;
+    uac_len -= uac_to_dma;
+    dma_can_write -= uac_to_dma;
+    while (uac_to_dma--) {
+        StereoSample_T sample = uac_buffer_[uac_buf_rpos];
+        uac_buf_rpos = (uac_buf_rpos + 1) & UAC_BUFFER_LEN_MASK;
+        i2s_dma_buffer_[last_i2s_dma_wpos_] = sample;
+        last_i2s_dma_wpos_ = (last_i2s_dma_wpos_ + 1) & I2S_DMA_BUFFER_SIZE_MASK;
+    }
+
+    uint32_t num_input_stereo_samples = len / sizeof(StereoSample_T);
+    num_usb += num_input_stereo_samples;
+    uint32_t usb_to_dma = num_input_stereo_samples > dma_can_write ? dma_can_write : num_input_stereo_samples;
+    dma_can_write -= usb_to_dma;
+    num_input_stereo_samples -= usb_to_dma;
+    const uint32_t* src_ptr = (const uint32_t*)ptr;
+    while (usb_to_dma--) {
+        uint32_t left = Swap16(*src_ptr);
+        ++src_ptr;
+        uint32_t right = Swap16(*src_ptr);
+        ++src_ptr;
+        i2s_dma_buffer_[last_i2s_dma_wpos_].left = left;
+        i2s_dma_buffer_[last_i2s_dma_wpos_].right = right;
+        last_i2s_dma_wpos_ = (last_i2s_dma_wpos_ + 1) & I2S_DMA_BUFFER_SIZE_MASK;
+    }
 
     uint32_t can_write = UAC_BUFFER_LEN_MASK - uac_len;
     if (num_input_stereo_samples > can_write) num_input_stereo_samples = can_write;
-    const uint32_t* src_ptr = (const uint32_t*)ptr;
     while (num_input_stereo_samples--) {
         uac_buffer_[uac_buf_wpos_].left = Swap16(*src_ptr);
         ++src_ptr;
@@ -386,8 +320,6 @@ void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
         ++uac_buf_wpos_;
         uac_buf_wpos_ &= UAC_BUFFER_LEN_MASK;
     }
-
-    uac_len = (uac_buf_wpos_ - uac_buf_rpos + UAC_BUFFER_LEN) & UAC_BUFFER_LEN_MASK;
 }
 
 uint32_t Codec_GetUACBufferLen (void) {
@@ -403,14 +335,10 @@ uint32_t Codec_GetDMALen(void) {
 }
 
 static void I2S2_PrescaleConfig(uint32_t v) {
-    DMA_Cmd(DMA1_Channel5, DISABLE);
-    I2S_Cmd(SPI2, DISABLE);
     uint16_t odd = (v & 1) << 8;
     uint16_t div = v >> 1;
     uint16_t mlck = 1 << 9;
     SPI2->I2SPR = odd | div | mlck;
-    I2S_Cmd(SPI2, ENABLE);
-    DMA_Cmd(DMA1_Channel5, ENABLE);
 }
 
 float report_fs_ = 0.0f;
@@ -418,24 +346,24 @@ static float timeing = 0.0f;
 void Codec_SetSampleRate(uint32_t sample_rate) {
     sample_rate_ = sample_rate;
     mesured_dma_sample_rate_ = sample_rate;
-    min_uac_len_ever = 0xffffffff;
-    max_uac_len_ever = 0;
+    min_uac_len_ever = 2048 / 2;
+    max_uac_len_ever = 2048 / 2;
     report_fs_ = sample_rate;
     raw_mesured_dma_sample_rate_ = sample_rate;
 
     switch (sample_rate) {
     case 96000:
         I2S2_PrescaleConfig(4);
-        timeing = 1.0f;
+        timeing = 1.0f; // 1sec
         break;
     case 192000:
         I2S2_PrescaleConfig(2);
-        timeing = 2.0f;
+        timeing = 2.0f; // 0.5sec
         break;
     case 48000:
     default:
         I2S2_PrescaleConfig(8);
-        timeing = 0.5f;
+        timeing = 0.5f; // 2sec
         break;
     }
 }
@@ -451,6 +379,8 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
         dma_frequency_meausure_counter_ = 0;
         uint32_t dma_bck = Codec_GetDMALen();
         float fs = dma_bck * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD / 8)) / 4;
+        if (fs > (sample_rate_ + 2000)) fs = sample_rate_ + 2000;
+        else if (fs < (sample_rate_ - 2000)) fs = sample_rate_ - 2000;
         raw_mesured_dma_sample_rate_ = raw_mesured_dma_sample_rate_ * 0.95f + fs * 0.05f;
         mesured_dma_sample_rate_ = raw_mesured_dma_sample_rate_;
         mesured_usb_sample_rate_ = num_usb * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD / 8));
@@ -459,10 +389,13 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
 
     ++feedback_report_counter_;
     if (feedback_report_counter_ >= FEEDBACK_REPORT_PERIOD) {
-        // 4ms
+        // 8ms
         feedback_report_counter_ = 0;
         int32_t uac_len = Codec_GetUACBufferLen();
-        float fb = raw_mesured_dma_sample_rate_ - (uac_len - UAC_BUFFER_LEN / 2) * timeing;
+        int32_t diff = (uac_len - UAC_BUFFER_LEN / 2);
+        if (diff > -10 && diff < 0) diff = -10;
+        if (diff > 0 && diff < 10) diff = 10;
+        float fb = raw_mesured_dma_sample_rate_ - diff * timeing;
         report_fs_ = report_fs_ * 0.99f + fb * 0.01f;
         USBUAC_WriteFeedback(report_fs_);
     }

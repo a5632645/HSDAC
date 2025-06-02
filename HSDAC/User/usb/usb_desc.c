@@ -185,7 +185,7 @@ const uint8_t MyCfgDescr_HS[] =
     0x11,        // bmAttributes (Isochronous, async, explimit feedback)
     USB_WORD(4), // wMaxPacketSize (4 bytes)
     0x02,        // bInterval
-    0x06,        // refresh, 4ms
+    0x07,        // refresh, 8ms
     0x00,        // sync address
 
     // ---------- usb cdc as debug ----------
