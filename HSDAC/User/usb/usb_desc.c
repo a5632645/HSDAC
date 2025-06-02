@@ -184,7 +184,7 @@ const uint8_t MyCfgDescr_HS[] =
     0x81,        // bEndpointAddress (IN, EP1)
     0x11,        // bmAttributes (Isochronous, async, explimit feedback)
     USB_WORD(4), // wMaxPacketSize (4 bytes)
-    0x01,        // bInterval
+    0x04,        // bInterval
     0x07,        // refresh, 8ms
     0x00,        // sync address
 

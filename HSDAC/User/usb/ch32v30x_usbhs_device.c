@@ -527,9 +527,9 @@ void USBUAC_WriteFeedback(float local_fs) {
  */
 void USBHS_IRQHandler (void) {
     len = 0;
-    volatile int8_t intflag = USBHSD->INT_FG;
-    volatile int8_t intst = USBHSD->INT_ST;
-    volatile uint8_t _errflag = 0;
+    int8_t intflag = USBHSD->INT_FG;
+    int8_t intst = USBHSD->INT_ST;
+    uint8_t _errflag = 0;
 
     if (intflag & USBHS_UIF_TRANSFER) {
         switch (intst & USBHS_UIS_TOKEN_MASK) {
@@ -639,7 +639,6 @@ void USBHS_IRQHandler (void) {
             /* end-point 1 data out interrupt */
             case USBHS_UIS_TOKEN_OUT | DEF_UEP1:
                 Codec_WriteUACBuffer(USBHS_EP1_Rx_Buf, USBHSD->RX_LEN);
-                USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
                 break;
 
             // ep2 rx: CDC串口接收
@@ -925,19 +924,16 @@ void USBHS_IRQHandler (void) {
                 }
                 else if (USBHS_SetupReqValue == 0) {
                     // mute
-                    USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_NAK;
                     audio_stream_interface_work = 0;
                     Codec_Stop();
                 }
                 else {
                     // start
-                    USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_TOG_DATA0 | USBHS_UEP_R_RES_ACK;
                     audio_stream_interface_work = 1;
                     Codec_Start();
                 }
                 if (_errflag != 0) {
                     // mute
-                    USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_NAK;
                     audio_stream_interface_work = 0;
                     Codec_Stop();
                 }
@@ -962,26 +958,20 @@ void USBHS_IRQHandler (void) {
                         }
                         break;
 
+                    case (DEF_UEP_OUT | DEF_UEP2):
+                        if (((USBHSD->UEP2_RX_CTRL) & USBHS_UEP_R_RES_MASK) == USBHS_UEP_R_RES_STALL) {
+                            USBHS_EP0_Buf[0] = 0x01;
+                        }
+                        break;
+
+                    case (DEF_UEP_IN | DEF_UEP2):
+                        if (((USBHSD->UEP2_TX_CTRL) & USBHS_UEP_T_RES_MASK) == USBHS_UEP_T_RES_STALL) {
+                            USBHS_EP0_Buf[0] = 0x01;
+                        }
+                        break;
+
                     case (DEF_UEP_OUT | DEF_UEP3):
                         if (((USBHSD->UEP3_RX_CTRL) & USBHS_UEP_R_RES_MASK) == USBHS_UEP_R_RES_STALL) {
-                            USBHS_EP0_Buf[0] = 0x01;
-                        }
-                        break;
-
-                    case (DEF_UEP_IN | DEF_UEP4):
-                        if (((USBHSD->UEP4_TX_CTRL) & USBHS_UEP_T_RES_MASK) == USBHS_UEP_T_RES_STALL) {
-                            USBHS_EP0_Buf[0] = 0x01;
-                        }
-                        break;
-
-                    case (DEF_UEP_OUT | DEF_UEP5):
-                        if (((USBHSD->UEP5_RX_CTRL) & USBHS_UEP_R_RES_MASK) == USBHS_UEP_R_RES_STALL) {
-                            USBHS_EP0_Buf[0] = 0x01;
-                        }
-                        break;
-
-                    case (DEF_UEP_IN | DEF_UEP6):
-                        if (((USBHSD->UEP6_TX_CTRL) & USBHS_UEP_T_RES_MASK) == USBHS_UEP_T_RES_STALL) {
                             USBHS_EP0_Buf[0] = 0x01;
                         }
                         break;
