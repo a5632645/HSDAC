@@ -33,7 +33,7 @@ static uint32_t uac_buf_rpos = 0;
 static uint32_t num_usb = 0;
 static uint32_t num_dma = 0;
 static uint32_t num_dma_cplt_tx = 0;
-static uint32_t sample_rate_ = 0;
+static uint32_t sample_rate_ = 48000;
 #define FEEDBACK_REPORT_PERIOD 64
 static uint32_t feedback_report_counter_ = 0;
 #define DMA_FREQUENCY_MEAURE_PERIOD 80
@@ -341,8 +341,8 @@ static void I2S2_PrescaleConfig(uint32_t v) {
     SPI2->I2SPR = odd | div | mlck;
 }
 
-float report_fs_ = 0.0f;
-static float timeing = 0.0f;
+float report_fs_ = 48000.0f;
+static float timeing = 1.0f;
 void Codec_SetSampleRate(uint32_t sample_rate) {
     sample_rate_ = sample_rate;
     mesured_dma_sample_rate_ = sample_rate;
@@ -358,7 +358,7 @@ void Codec_SetSampleRate(uint32_t sample_rate) {
         break;
     case 192000:
         I2S2_PrescaleConfig(2);
-        timeing = 2.0f; // 0.5sec
+        timeing = 2.0f; // 0.25sec
         break;
     case 48000:
     default:
@@ -392,7 +392,7 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
         // 8ms
         feedback_report_counter_ = 0;
         int32_t uac_len = Codec_GetUACBufferLen();
-        int32_t diff = (uac_len - UAC_BUFFER_LEN / 2);
+        int32_t diff = (uac_len - UAC_BUFFER_LEN * 3 / 8);
         if (diff > -10 && diff < 0) diff = -10;
         if (diff > 0 && diff < 10) diff = 10;
         float fb = raw_mesured_dma_sample_rate_ - diff * timeing;
