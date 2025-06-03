@@ -257,6 +257,8 @@ bool Codec_IsDMAStart (void) {
     return true;
 }
 
+static float last_sample_left_ = 0.0f;
+static float last_sample_right_ = 0.0f;
 void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
     int32_t curr_dma_pos = (I2S_DMA_BUFFER_SIZE * 4 - DMA_GetCurrDataCounter(DMA1_Channel5)) / 4;
     uint32_t dma_can_write = (curr_dma_pos - last_i2s_dma_wpos_) & I2S_DMA_BUFFER_SIZE_MASK;
@@ -274,40 +276,25 @@ void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
 
     uint32_t num_input_stereo_samples = len / sizeof(StereoSample_T);
     num_usb += num_input_stereo_samples;
-    uint32_t usb_to_dma = num_input_stereo_samples > dma_can_write ? dma_can_write : num_input_stereo_samples;
-    dma_can_write -= usb_to_dma;
-    num_input_stereo_samples -= usb_to_dma;
     const uint32_t* src_ptr = (const uint32_t*)ptr;
-    while (usb_to_dma--) {
-        uint32_t left = Swap16(*src_ptr);
-        ++src_ptr;
-        uint32_t right = Swap16(*src_ptr);
-        ++src_ptr;
-        i2s_dma_buffer_[last_i2s_dma_wpos_].left = left;
-        i2s_dma_buffer_[last_i2s_dma_wpos_].right = right;
-        last_i2s_dma_wpos_ = (last_i2s_dma_wpos_ + 1) & I2S_DMA_BUFFER_SIZE_MASK;
-    }
-
     uint32_t can_write = UAC_BUFFER_LEN_MASK - uac_len;
-    if (num_input_stereo_samples > can_write) num_input_stereo_samples = can_write;
-    int32_t t = num_input_stereo_samples;
-    StereoSample_T s;
-    s.left = Swap16(*src_ptr);
-    ++src_ptr;
-    s.right = Swap16(*src_ptr);
-    ++src_ptr;
-    while (t > 0) {
-        uac_buffer_[uac_buf_wpos_] = s;
+    float curr_left = *(src_ptr++);
+    float curr_right = *(src_ptr++);
+    for (uint32_t i = 0; i < can_write; ++i) {
+        // interpolation
+        uac_buffer_[uac_buf_wpos_].left = (int32_t)(last_sample_left_ + (curr_left - last_sample_left_) * resample_phase_);
+        uac_buffer_[uac_buf_wpos_].right = (int32_t)(last_sample_right_ + (curr_right - last_sample_right_) * resample_phase_);
         uac_buf_wpos_ = (uac_buf_wpos_ + 1) & UAC_BUFFER_LEN_MASK;
+
         resample_phase_ += resample_ratio_;
         if (resample_phase_ >= 1.0f) {
-            int32_t step = (int32_t)resample_phase_;
-            t -= step;
-            resample_phase_ -= step;
-            s.left = Swap16(*src_ptr);
-            ++src_ptr;
-            s.right = Swap16(*src_ptr);
-            ++src_ptr;
+            resample_phase_ -= (int32_t)resample_phase_;
+            last_sample_left_ = curr_left;
+            last_sample_right_ = curr_right;
+            if (num_input_stereo_samples == 0) break;
+            curr_left = *(src_ptr++);
+            curr_right = *(src_ptr++);
+            --num_input_stereo_samples;
         }
     }
 }
@@ -344,16 +331,16 @@ void Codec_SetSampleRate(uint32_t sample_rate) {
     switch (sample_rate) {
     case 96000:
         I2S2_PrescaleConfig(8);
-        timeing = 1.0f; // 1sec
+        timeing = 1.0f;
         break;
     case 192000:
         I2S2_PrescaleConfig(4);
-        timeing = 2.0f; // 0.5sec
+        timeing = 2.0f;
         break;
     case 48000:
     default:
         I2S2_PrescaleConfig(16);
-        timeing = 0.5f; // 2sec
+        timeing = 0.5f;
         break;
     }
 }
@@ -371,7 +358,7 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
         float fs = dma_bck * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD)) / 4;
         if (fs > (sample_rate_ + 2000)) fs = sample_rate_ + 2000;
         else if (fs < (sample_rate_ - 2000)) fs = sample_rate_ - 2000;
-        raw_mesured_dma_sample_rate_ = raw_mesured_dma_sample_rate_ * 0.95f + fs * 0.05f;
+        raw_mesured_dma_sample_rate_ = raw_mesured_dma_sample_rate_ * 0.99f + fs * 0.01f;
         mesured_dma_sample_rate_ = raw_mesured_dma_sample_rate_;
         mesured_usb_sample_rate_ = num_usb * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD));
         num_usb = 0;
