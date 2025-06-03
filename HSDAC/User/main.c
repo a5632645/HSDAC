@@ -12,8 +12,11 @@ static void ES9018K_Init(void) {
     GPIO_WriteBit(GPIOA, GPIO_Pin_1, Bit_SET);
     Delay_Ms(100);
 
+    // 尼玛，手册里寄存器写 #12 ,然后是0x12, cnm
     Codec_PollWrite(0, 0xf1);
+    Delay_Ms(100);
     Codec_PollWrite(0, 0xf0);
+    Delay_Ms(100);
     Codec_PollWrite(1, 0b10000000);
 }
 
@@ -22,6 +25,7 @@ extern volatile uint32_t min_uac_len_ever;
 extern uint32_t mesured_dma_sample_rate_;
 extern uint32_t mesured_usb_sample_rate_;
 extern float report_fs_;
+extern uint8_t vol_[];
 
 int main(void) {
     NVIC_PriorityGroupConfig(NVIC_PriorityGroup_2);
@@ -53,5 +57,7 @@ int main(void) {
             if (max_uac_len_ever > 2048 / 2)
                 --max_uac_len_ever;
         }
+
+        Codec_CheckVolumeEvent();
     }
 }

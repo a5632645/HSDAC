@@ -29,3 +29,11 @@ void     Codec_CheckBuffer(void);
 uint32_t Codec_GetDMALen(void);
 void     Codec_SetSampleRate(uint32_t sample_rate);
 void     Codec_MeasureSampleRateAndReportFeedback(void);
+
+enum eCodecChannel {
+    eCodecChannel_Left,
+    eCodecChannel_Right,
+};
+
+void     Codec_CheckVolumeEvent(void);
+void     Codec_SetVolume(enum eCodecChannel channel, uint8_t vol);

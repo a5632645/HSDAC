@@ -11,6 +11,7 @@
  *******************************************************************************/
 #include "ch32v30x_usbhs_device.h"
 #include "codec.h"
+#include "tick.h"
 
 /******************************************************************************/
 /* Variable Definition */
@@ -48,7 +49,7 @@ volatile uint8_t USBHS_DevEnumStatus;
 /* Endpoint Buffer */
 __attribute__ ((aligned (4))) uint8_t USBHS_EP0_Buf[DEF_USBD_UEP0_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP1_Rx_Buf[DEF_USB_EP1_HS_SIZE];
-__attribute__ ((aligned (4))) uint8_t USBHS_EP1_Tx_Buf[4];
+__attribute__ ((aligned (4))) uint8_t USBHS_EP4_Tx_Buf[4];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP3_Tx_Buf[DEF_USB_EP3_HS_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP2_Tx_Buf[DEF_USB_EP2_HS_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP2_Rx_Buf[DEF_USB_EP2_HS_SIZE];
@@ -136,16 +137,16 @@ void USBHS_Device_Endp_Init (void) {
 
     USBHSD->UEP0_DMA = (uint32_t)(uint8_t*)USBHS_EP0_Buf;
     USBHSD->UEP1_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Rx_Buf;
-    USBHSD->UEP1_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Tx_Buf;
+    USBHSD->UEP1_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP4_Tx_Buf;
     USBHSD->UEP2_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Tx_Buf;
     USBHSD->UEP2_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Rx_Buf;
     USBHSD->UEP3_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP3_Tx_Buf;
 
     USBHSD->UEP0_TX_LEN = 0;
-    USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_RES_NAK;
+    USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_RES_ACK;
     USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_RES_ACK;
 
-    USBHSD->UEP1_TX_LEN = 0;
+    USBHSD->UEP1_TX_LEN = 4;
     USBHSD->UEP1_TX_CTRL = USBHS_UEP_T_RES_NAK;
     USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
 
@@ -176,7 +177,7 @@ void USBHS_Device_Init (FunctionalState sta) {
         USBHSD->CONTROL &= ~USBHS_UC_RESET_SIE;
         USBHSD->HOST_CTRL = USBHS_UH_PHY_SUSPENDM;
         USBHSD->CONTROL = USBHS_UC_DMA_EN | USBHS_UC_INT_BUSY | USBHS_UC_SPEED_HIGH;
-        USBHSD->INT_EN = USBHS_UIE_SETUP_ACT | USBHS_UIE_TRANSFER | USBHS_UIE_DETECT | USBHS_UIE_SUSPEND | USBHS_UIE_SOF_ACT;
+        USBHSD->INT_EN = USBHS_UIE_SETUP_ACT | USBHS_UIE_TRANSFER | USBHS_UIE_DETECT | USBHS_UIE_SUSPEND;
         USBHS_Device_Endp_Init();
         USBHSD->CONTROL |= USBHS_UC_DEV_PU_EN;
 
@@ -272,7 +273,7 @@ uint8_t USBHS_Endp_DataUp (uint8_t endp, uint8_t *pbuf, uint16_t len, uint8_t mo
     return 0;
 }
 
-#define errflag while(1) {}; _errflag
+#define errflag _errflag
 #define notsupport _errflag = 0xff
 #define ssupport _errflag = 0
 
@@ -296,6 +297,8 @@ static const uint8_t com_cfg[] = {
 static uint16_t len = 0;
 static uint32_t sample_rate = 48000;
 static uint8_t audio_stream_interface_work = 0;
+static volatile uint8_t channel_mutes_ = 0;
+static volatile int16_t channel_volumes_[3];
 // uac setup,set something or send something to host
 static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
     switch (USBHS_SetupReqType & USB_REQ_TYP_MASK) {
@@ -318,6 +321,62 @@ static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
             else if ((USBHS_SetupReqIndex & 0xff) == 0) {
                 // audio control
                 switch (USBHS_SetupReqIndex >> 8) {
+                case 0x04: { // feature unit
+                    uint8_t channel = USBHS_SetupReqValue & 0xff;
+                    switch (USBHS_SetupReqValue >> 8) {
+                    case 0x01: // mute
+                        if (USBHS_SetupReqType & 0x80) {
+                            // get
+                            USBHS_EP0_Buf[0] = (channel_mutes_ & (1 << channel)) ? 1 : 0;
+                            len = 1;
+                        }
+                        else {
+                            // set
+                            ssupport;
+                        }
+                        break;
+                    case 0x02:
+                        // volume
+                        switch (USBHS_SetupReqCode) {
+                        case 0x1:
+                            // curr
+                            if (USBHS_SetupReqType & 0x80) {
+                                // get
+                                *(int16_t*)USBHS_EP0_Buf = channel_volumes_[channel];
+                                len = 2;
+                            }
+                            else {
+                                // set
+                                ssupport;
+                            }
+                            break;
+                        case 0x2:
+                            // range
+                            if (USBHS_SetupReqType & 0x80) {
+                                // get
+                                int16_t* p = (int16_t*)USBHS_EP0_Buf;
+                                p[0] = 1;
+                                p[1] = -32767;
+                                p[2] = 0;
+                                p[3] = 128;
+                                len = 8;
+                            }
+                            else {
+                                // set
+                                notsupport;
+                            }
+                            break;
+                        default:
+                            notsupport;
+                            break;
+                        }
+                        break;
+                    default:
+                        notsupport;
+                        break;
+                    }
+                }
+                break;
                 case 0x3: { // clock source
                     switch (USBHS_SetupReqValue >> 8) {
                     case UAC_CLOCK_SOURCE_CONTROL_SELECT_SAMLPE_RATE: {
@@ -391,7 +450,7 @@ static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
     return _errflag;
 }
 
-// uac setup,geted something and set
+// uac set somethins
 static uint8_t USBHS_UAC_RX(uint8_t _errflag) {
     switch (USBHS_SetupReqType & USB_REQ_TYP_MASK) {
     case USB_REQ_TYP_CLASS:
@@ -412,6 +471,75 @@ static uint8_t USBHS_UAC_RX(uint8_t _errflag) {
             else if ((USBHS_SetupReqIndex & 0xff) == 0) {
                 // audio control
                 switch (USBHS_SetupReqIndex >> 8) {
+                case 0x04: { // feature unit
+                    uint8_t channel = USBHS_SetupReqValue & 0xff;
+                    switch (USBHS_SetupReqValue >> 8) {
+                    case 0x01: // mute
+                        if (USBHS_SetupReqType & 0x80) {
+                            // get
+                        }
+                        else {
+                            // set
+                            if (USBHS_EP0_Buf[0]) {
+                                channel_mutes_ |= (1 << channel);
+                            }
+                            else {
+                                channel_mutes_ &= ~(1 << channel);
+                            }
+                        }
+                        break;
+                    case 0x02:
+                        // volume
+                        switch (USBHS_SetupReqCode) {
+                        case 0x1:
+                            // curr
+                            if (USBHS_SetupReqType & 0x80) {
+                                // get
+                            }
+                            else {
+                                // set
+                                channel_volumes_[channel] = *(int16_t*)USBHS_EP0_Buf;
+                                uint8_t vol = 0;
+                                if (channel_volumes_[channel] == -32768) {
+                                    vol = 0xff;
+                                }
+                                else {
+                                    vol = (uint16_t)(-channel_volumes_[channel]) >> 7;
+                                }
+                                if (channel == 0) {
+                                    Codec_SetVolume(eCodecChannel_Left, vol);
+                                    Codec_SetVolume(eCodecChannel_Right, vol);
+                                }
+                                else if (channel == 1) {
+                                    Codec_SetVolume(eCodecChannel_Left, vol);
+                                }
+                                else if (channel == 2) {
+                                    Codec_SetVolume(eCodecChannel_Right, vol);
+                                }
+                            }
+                            break;
+                        case 0x2:
+                            // range
+                            if (USBHS_SetupReqType & 0x80) {
+                                // get
+                            }
+                            else {
+                                // set
+                                notsupport;
+                            }
+                            break;
+                        default:
+                            notsupport;
+                            break;
+                        }
+                        break;
+                    default:
+                        notsupport;
+                        break;
+                    }
+                }
+                break;
+                
                 case 0x3: { // clock source
                     switch (USBHS_SetupReqValue >> 8) {
                     case UAC_CLOCK_SOURCE_CONTROL_SELECT_SAMLPE_RATE: {
@@ -495,7 +623,10 @@ uint32_t USBCDC_Write(const char* buf, uint32_t len) {
     USBHSD->UEP2_TX_DMA = (uint32_t)buf;
     USBHSD->UEP2_TX_CTRL &= ~USBHS_UEP_T_RES_MASK;
     USBHSD->UEP2_TX_CTRL |= USBHS_UEP_T_RES_ACK;
-    while (!cdc_tx_cplt) {}
+
+    uint32_t start = Tick_GetTick();
+    while (!cdc_tx_cplt && (Tick_GetTick() - start) < 10) {}
+
     return len;
 }
 
@@ -510,12 +641,10 @@ void USBUAC_WriteFeedback(float local_fs) {
     uint16_t intergal = (uint16_t)local_fs;
     local_fs -= intergal;
     uint16_t fraction = (uint16_t)(local_fs * 65536);
-    USBHS_EP1_Tx_Buf[0] = fraction & 0xff;
-    USBHS_EP1_Tx_Buf[1] = (fraction >> 8) & 0xff;
-    USBHS_EP1_Tx_Buf[2] = intergal & 0xff;
-    USBHS_EP1_Tx_Buf[3] = (intergal >> 8) & 0xff;
-    USBHSD->UEP1_TX_LEN = 4;
-    USBHSD->UEP1_TX_CTRL = (USBHSD->UEP1_TX_CTRL & ~USBHS_UEP_T_RES_MASK) | USBHS_UEP_T_RES_ACK;
+    USBHS_EP4_Tx_Buf[0] = fraction & 0xff;
+    USBHS_EP4_Tx_Buf[1] = (fraction >> 8) & 0xff;
+    USBHS_EP4_Tx_Buf[2] = intergal & 0xff;
+    USBHS_EP4_Tx_Buf[3] = (intergal >> 8) & 0xff;
 }
 
 /*********************************************************************
@@ -527,8 +656,8 @@ void USBUAC_WriteFeedback(float local_fs) {
  */
 void USBHS_IRQHandler (void) {
     len = 0;
-    int8_t intflag = USBHSD->INT_FG;
-    int8_t intst = USBHSD->INT_ST;
+    uint8_t intflag = USBHSD->INT_FG;
+    uint8_t intst = USBHSD->INT_ST;
     uint8_t _errflag = 0;
 
     if (intflag & USBHS_UIF_TRANSFER) {
@@ -573,7 +702,6 @@ void USBHS_IRQHandler (void) {
 
             // UAC反馈传输完成
             case USBHS_UIS_TOKEN_IN | DEF_UEP1:
-                USBHSD->UEP1_TX_CTRL = (USBHSD->UEP1_TX_CTRL & ~USBHS_UEP_T_RES_MASK) | USBHS_UEP_T_RES_NAK;
                 is_fb_cplt_ = true;
                 break;
 
@@ -639,6 +767,7 @@ void USBHS_IRQHandler (void) {
             /* end-point 1 data out interrupt */
             case USBHS_UIS_TOKEN_OUT | DEF_UEP1:
                 Codec_WriteUACBuffer(USBHS_EP1_Rx_Buf, USBHSD->RX_LEN);
+                Codec_MeasureSampleRateAndReportFeedback();
                 break;
 
             // ep2 rx: CDC串口接收
@@ -650,21 +779,20 @@ void USBHS_IRQHandler (void) {
                 break;
 
             default:
-                errflag = 0xFF;
                 break;
             }
             break;
 
         /* Sof pack processing */
         case USBHS_UIS_TOKEN_SOF:
-            Codec_MeasureSampleRateAndReportFeedback();
             break;
 
         default:
             break;
         }
         USBHSD->INT_FG = USBHS_UIF_TRANSFER;
-    } else if (intflag & USBHS_UIF_SETUP_ACT) {
+    } 
+    else if (intflag & USBHS_UIF_SETUP_ACT) {
         USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_TOG_DATA1 | USBHS_UEP_T_RES_NAK;
         USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_TOG_DATA1 | USBHS_UEP_R_RES_NAK;
 
@@ -1021,7 +1149,9 @@ void USBHS_IRQHandler (void) {
             }
         }
         USBHSD->INT_FG = USBHS_UIF_SETUP_ACT;
-    } else if (intflag & USBHS_UIF_BUS_RST) {
+        intflag &= ~USBHS_UIF_SETUP_ACT;
+    }
+    else if (intflag & USBHS_UIF_BUS_RST) {
         /* usb reset interrupt processing */
         USBHS_DevConfig = 0;
         USBHS_DevAddr = 0;
@@ -1034,8 +1164,11 @@ void USBHS_IRQHandler (void) {
         USBHSD->DEV_AD = 0;
         USBHS_Device_Endp_Init();
         USBHSD->INT_FG = USBHS_UIF_BUS_RST;
-    } else if (intflag & USBHS_UIF_SUSPEND) {
+        intflag &= ~USBHS_UIF_BUS_RST;
+    }
+    else if (intflag & USBHS_UIF_SUSPEND) {
         USBHSD->INT_FG = USBHS_UIF_SUSPEND;
+        intflag &= ~USBHS_UIF_SUSPEND;
         Delay_Us (10);
         /* usb suspend interrupt processing */
         if (USBHSD->MIS_ST & USBHS_UMS_SUSPEND) {
@@ -1050,6 +1183,7 @@ void USBHS_IRQHandler (void) {
     else {
         /* other interrupts */
         USBHSD->INT_FG = intflag;
+        intflag = 0;
     }
 }
 

@@ -9,6 +9,7 @@
 #include <math.h>
 #include <string.h>
 #include "usb/ch32v30x_usbhs_device.h"
+#include "ch32v30x_usb.h"
 
 #define I2S_DMA_BLOCK_SIZE 256
 #define I2S_DMA_BUFFER_SIZE (I2S_DMA_BLOCK_SIZE * 2)
@@ -33,9 +34,9 @@ static volatile uint32_t num_usb = 0;
 static volatile uint32_t num_dma = 0;
 static volatile uint32_t num_dma_cplt_tx = 0;
 static volatile uint32_t sample_rate_ = 48000;
-#define FEEDBACK_REPORT_PERIOD 64
+#define FEEDBACK_REPORT_PERIOD 4
 static volatile uint32_t feedback_report_counter_ = 0;
-#define DMA_FREQUENCY_MEAURE_PERIOD 80
+#define DMA_FREQUENCY_MEAURE_PERIOD 8
 static volatile uint32_t dma_frequency_meausure_counter_ = 0;
 static volatile float raw_mesured_dma_sample_rate_ = 0;
 uint32_t mesured_dma_sample_rate_ = 0;
@@ -209,10 +210,11 @@ void Codec_PollWrite(uint8_t reg, uint8_t val) {
     while (I2C_GetFlagStatus (I2C2, I2C_FLAG_TXE) == RESET) {}
     I2C_SendData (I2C2, reg);
     while (I2C_GetFlagStatus (I2C2, I2C_FLAG_TXE) == RESET) {}
+    Delay_Ms(1);
     I2C_SendData (I2C2, val);
     while (I2C_GetFlagStatus (I2C2, I2C_EVENT_MASTER_BYTE_TRANSMITTED) == RESET) {}
     I2C_GenerateSTOP (I2C2, ENABLE);
-    Delay_Ms(20);
+    Delay_Ms(1);
 }
 
 uint8_t Codec_PollRead(uint8_t reg) {
@@ -351,30 +353,53 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
     if (uac_len < min_uac_len_ever) min_uac_len_ever = uac_len;
     if (uac_len > max_uac_len_ever) max_uac_len_ever = uac_len;
 
-    ++dma_frequency_meausure_counter_;
-    if (dma_frequency_meausure_counter_ >= DMA_FREQUENCY_MEAURE_PERIOD) {
+    uint16_t frame = USBHSD->FRAME_NO & 0x7ff;
+    if (frame - dma_frequency_meausure_counter_ >= DMA_FREQUENCY_MEAURE_PERIOD) {
         // 10ms
-        dma_frequency_meausure_counter_ = 0;
+        dma_frequency_meausure_counter_ = frame;
         uint32_t dma_bck = Codec_GetDMALen();
-        float fs = dma_bck * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD / 8)) / 4;
+        float fs = dma_bck * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD)) / 4;
         if (fs > (sample_rate_ + 2000)) fs = sample_rate_ + 2000;
         else if (fs < (sample_rate_ - 2000)) fs = sample_rate_ - 2000;
         raw_mesured_dma_sample_rate_ = raw_mesured_dma_sample_rate_ * 0.95f + fs * 0.05f;
         mesured_dma_sample_rate_ = raw_mesured_dma_sample_rate_;
-        mesured_usb_sample_rate_ = num_usb * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD / 8));
+        mesured_usb_sample_rate_ = num_usb * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD));
         num_usb = 0;
     }
 
-    ++feedback_report_counter_;
-    if (feedback_report_counter_ >= FEEDBACK_REPORT_PERIOD) {
-        // 8ms
-        feedback_report_counter_ = 0;
+    if (frame - feedback_report_counter_ >= FEEDBACK_REPORT_PERIOD) {
+        // 4ms
+        feedback_report_counter_ = frame;
         int32_t uac_len = Codec_GetUACBufferLen();
         int32_t diff = (uac_len - UAC_BUFFER_LEN / 2);
         if (diff > -10 && diff < 0) diff = -10;
         if (diff > 0 && diff < 10) diff = 10;
-        float fb = raw_mesured_dma_sample_rate_ - diff * timeing;
+        float fb = raw_mesured_dma_sample_rate_ - diff * timeing * 5;
         report_fs_ = report_fs_ * 0.99f + fb * 0.01f;
         USBUAC_WriteFeedback(report_fs_);
+    }
+}
+
+static uint8_t volume_event_ = 0;
+uint8_t vol_[2];
+void Codec_CheckVolumeEvent(void) {
+    if (volume_event_ & 1) {
+        Codec_PollWrite(15, vol_[0]);
+        volume_event_ &= ~1;
+    }
+    if (volume_event_ & 2) {
+        Codec_PollWrite(16, vol_[1]);
+        volume_event_ &= ~2;
+    }
+}
+
+void Codec_SetVolume(enum eCodecChannel channel, uint8_t vol) {
+    if (channel == eCodecChannel_Left) {
+        volume_event_ |= 1;
+        vol_[0] = vol;
+    }
+    else {
+        volume_event_ |= 2;
+        vol_[1] = vol;
     }
 }
