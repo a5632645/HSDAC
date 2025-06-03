@@ -26,10 +26,6 @@ static StereoSample_T uac_buffer_[UAC_BUFFER_LEN] = {0};
 static volatile uint32_t uac_buf_wpos_ = UAC_WPOS_INIT;
 static volatile uint32_t uac_buf_rpos = 0;
 
-#define I2S_PRESCALE_ODD_MASK 0x100
-#define I2S_PRESCALE_DIV_MASK 0xff
-#define I2S_PRESCALE_MASK     0x1ff
-
 static volatile uint32_t num_usb = 0;
 static volatile uint32_t num_dma = 0;
 static volatile uint32_t num_dma_cplt_tx = 0;
@@ -41,6 +37,8 @@ static volatile uint32_t dma_frequency_meausure_counter_ = 0;
 static volatile float raw_mesured_dma_sample_rate_ = 0;
 uint32_t mesured_dma_sample_rate_ = 0;
 uint32_t mesured_usb_sample_rate_ = 0;
+static float resample_phase_ = 0.0f;
+static float resample_ratio_ = 1.0f;
 
 volatile uint32_t max_uac_len_ever = 0;
 volatile uint32_t min_uac_len_ever = 0xffffffff;
@@ -292,13 +290,25 @@ void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
 
     uint32_t can_write = UAC_BUFFER_LEN_MASK - uac_len;
     if (num_input_stereo_samples > can_write) num_input_stereo_samples = can_write;
-    while (num_input_stereo_samples--) {
-        uac_buffer_[uac_buf_wpos_].left = Swap16(*src_ptr);
-        ++src_ptr;
-        uac_buffer_[uac_buf_wpos_].right = Swap16(*src_ptr);
-        ++src_ptr;
-        ++uac_buf_wpos_;
-        uac_buf_wpos_ &= UAC_BUFFER_LEN_MASK;
+    int32_t t = num_input_stereo_samples;
+    StereoSample_T s;
+    s.left = Swap16(*src_ptr);
+    ++src_ptr;
+    s.right = Swap16(*src_ptr);
+    ++src_ptr;
+    while (t > 0) {
+        uac_buffer_[uac_buf_wpos_] = s;
+        uac_buf_wpos_ = (uac_buf_wpos_ + 1) & UAC_BUFFER_LEN_MASK;
+        resample_phase_ += resample_ratio_;
+        if (resample_phase_ >= 1.0f) {
+            int32_t step = (int32_t)resample_phase_;
+            t -= step;
+            resample_phase_ -= step;
+            s.left = Swap16(*src_ptr);
+            ++src_ptr;
+            s.right = Swap16(*src_ptr);
+            ++src_ptr;
+        }
     }
 }
 
@@ -338,7 +348,7 @@ void Codec_SetSampleRate(uint32_t sample_rate) {
         break;
     case 192000:
         I2S2_PrescaleConfig(4);
-        timeing = 2.0f; // 0.25sec
+        timeing = 2.0f; // 0.5sec
         break;
     case 48000:
     default:
@@ -372,11 +382,9 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
         feedback_report_counter_ = frame;
         int32_t uac_len = Codec_GetUACBufferLen();
         int32_t diff = (uac_len - UAC_BUFFER_LEN / 2);
-        if (diff > -10 && diff < 0) diff = -10;
-        if (diff > 0 && diff < 10) diff = 10;
-        float fb = raw_mesured_dma_sample_rate_ - diff * timeing * 5;
+        float fb = raw_mesured_dma_sample_rate_ + diff * timeing;
         report_fs_ = report_fs_ * 0.99f + fb * 0.01f;
-        USBUAC_WriteFeedback(report_fs_);
+        resample_ratio_ = report_fs_ / sample_rate_;
     }
 }
 

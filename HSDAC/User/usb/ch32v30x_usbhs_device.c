@@ -49,7 +49,6 @@ volatile uint8_t USBHS_DevEnumStatus;
 /* Endpoint Buffer */
 __attribute__ ((aligned (4))) uint8_t USBHS_EP0_Buf[DEF_USBD_UEP0_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP1_Rx_Buf[DEF_USB_EP1_HS_SIZE];
-__attribute__ ((aligned (4))) uint8_t USBHS_EP4_Tx_Buf[4];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP3_Tx_Buf[DEF_USB_EP3_HS_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP2_Tx_Buf[DEF_USB_EP2_HS_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP2_Rx_Buf[DEF_USB_EP2_HS_SIZE];
@@ -125,10 +124,10 @@ void USBHS_RCC_Init (void) {
  */
 void USBHS_Device_Endp_Init (void) {
 
-    USBHSD->ENDP_CONFIG = USBHS_UEP1_R_EN | USBHS_UEP1_T_EN 
+    USBHSD->ENDP_CONFIG = USBHS_UEP1_R_EN 
                         | USBHS_UEP2_T_EN | USBHS_UEP2_R_EN
                         | USBHS_UEP3_T_EN;
-    USBHSD->ENDP_TYPE = USBHS_UEP1_R_TYPE | USBHS_UEP1_T_TYPE;
+    USBHSD->ENDP_TYPE = USBHS_UEP1_R_TYPE;
 
     USBHSD->UEP0_MAX_LEN = DEF_USBD_UEP0_SIZE;
     USBHSD->UEP1_MAX_LEN = DEF_USB_EP1_HS_SIZE;
@@ -137,7 +136,6 @@ void USBHS_Device_Endp_Init (void) {
 
     USBHSD->UEP0_DMA = (uint32_t)(uint8_t*)USBHS_EP0_Buf;
     USBHSD->UEP1_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Rx_Buf;
-    USBHSD->UEP1_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP4_Tx_Buf;
     USBHSD->UEP2_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Tx_Buf;
     USBHSD->UEP2_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Rx_Buf;
     USBHSD->UEP3_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP3_Tx_Buf;
@@ -146,8 +144,6 @@ void USBHS_Device_Endp_Init (void) {
     USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_RES_ACK;
     USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_RES_ACK;
 
-    USBHSD->UEP1_TX_LEN = 4;
-    USBHSD->UEP1_TX_CTRL = USBHS_UEP_T_RES_NAK;
     USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
 
     USBHSD->UEP2_TX_LEN = 0;
@@ -630,23 +626,6 @@ uint32_t USBCDC_Write(const char* buf, uint32_t len) {
     return len;
 }
 
-static volatile bool is_fb_cplt_ = true;
-void USBUAC_WriteFeedback(float local_fs) {
-    if (!is_fb_cplt_) return;
-    if (audio_stream_interface_work == 0) return;
-    is_fb_cplt_ = false;
-    // turn sample rate into data_rate per micro frame
-    // 4(unused) 12.13 3(unused)
-    local_fs /= 8000.0f;
-    uint16_t intergal = (uint16_t)local_fs;
-    local_fs -= intergal;
-    uint16_t fraction = (uint16_t)(local_fs * 65536);
-    USBHS_EP4_Tx_Buf[0] = fraction & 0xff;
-    USBHS_EP4_Tx_Buf[1] = (fraction >> 8) & 0xff;
-    USBHS_EP4_Tx_Buf[2] = intergal & 0xff;
-    USBHS_EP4_Tx_Buf[3] = (intergal >> 8) & 0xff;
-}
-
 /*********************************************************************
  * @fn      USBHS_IRQHandler
  *
@@ -698,11 +677,6 @@ void USBHS_IRQHandler (void) {
                 if (USBHS_Test_Flag & 0x80) {
                     USB_TestMode_Deal();
                 }
-                break;
-
-            // UAC反馈传输完成
-            case USBHS_UIS_TOKEN_IN | DEF_UEP1:
-                is_fb_cplt_ = true;
                 break;
 
             // CDC中断上传状态更改
@@ -962,11 +936,6 @@ void USBHS_IRQHandler (void) {
                             USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
                             break;
 
-                        case DEF_UEP1 | DEF_UEP_IN:
-                            USBHSD->UEP1_TX_CTRL = USBHS_UEP_T_RES_NAK;
-                            is_fb_cplt_ = true;
-                            break;
-
                         case (DEF_UEP2 | DEF_UEP_OUT):
                             USBHSD->UEP2_RX_CTRL = USBHS_UEP_R_RES_ACK;
                             break;
@@ -1159,7 +1128,6 @@ void USBHS_IRQHandler (void) {
         USBHS_DevEnumStatus = 0;
 
         cdc_tx_cplt = true;
-        is_fb_cplt_ = true;
 
         USBHSD->DEV_AD = 0;
         USBHS_Device_Endp_Init();
