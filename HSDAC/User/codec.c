@@ -368,17 +368,12 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
     }
 
     if (frame - feedback_report_counter_ >= FEEDBACK_REPORT_PERIOD) {
-        // 4ms
+        // 10ms
         feedback_report_counter_ = frame;
-        // float new_r = 1.0f;
         int32_t diff = (uac_len - UAC_BUFFER_LEN / 2);
         float fb = raw_mesured_dma_sample_rate_ + diff * timeing;
         report_fs_ = report_fs_ * 0.99f + fb * 0.01f;
         resample_ratio_ = report_fs_ / sample_rate_;
-        // if (uac_len > UAC_BUFFER_LEN_UP_THRESHOLD) {
-            // new_r = 1.0f + 2500.0f / sample_rate_;
-        // }
-        // resample_ratio_ = 0.99f * resample_ratio_ + new_r * 0.01f;
     }
 }
 
