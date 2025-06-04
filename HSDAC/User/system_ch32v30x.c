@@ -580,7 +580,7 @@ static void SetSysClockTo96_HSE(void)
   if (HSEStatus == (uint32_t)0x01)
   {
     /* HCLK = SYSCLK */
-    RCC->CFGR0 |= (uint32_t)RCC_HPRE_DIV2;
+    RCC->CFGR0 |= (uint32_t)RCC_HPRE_DIV1;
     /* PCLK2 = HCLK */
     RCC->CFGR0 |= (uint32_t)RCC_PPRE2_DIV1;
     /* PCLK1 = HCLK */
@@ -595,9 +595,9 @@ static void SetSysClockTo96_HSE(void)
 #else
         // RCC->CFGR0 |= (uint32_t)(RCC_PLLSRC_HSE | RCC_PLLXTPRE_HSE | RCC_PLLMULL12_EXTEN);
         RCC->CFGR2 &= ~RCC_PREDIV2;
-        RCC->CFGR2 |= RCC_PREDIV2_Div11;
+        RCC->CFGR2 |= RCC_PREDIV2_Div13;
         RCC->CFGR2 &= ~RCC_PLL2MUL;
-        RCC->CFGR2 |= RCC_PLL2Mul_15;
+        RCC->CFGR2 |= RCC_PLL2Mul_20;
         RCC->CTLR |= RCC_PLL2ON;
         while ((RCC->CTLR & RCC_PLL2RDY) == 0)
         {
@@ -607,7 +607,7 @@ static void SetSysClockTo96_HSE(void)
         RCC->CFGR2 |= RCC_PREDIV1_Div1;
         RCC->CFGR0 |= RCC_PLLSRC_HSE;
         RCC->CFGR0 &= ~RCC_PLLMULL;
-        RCC->CFGR0 |= RCC_PLLMULL18_EXTEN;
+        RCC->CFGR0 |= RCC_PLLMULL12_EXTEN;
 #endif
 
     /* Enable PLL */

@@ -103,10 +103,6 @@ extern volatile uint8_t USBHS_DevEnumStatus;
 /* Endpoint tx busy flag */
 extern volatile uint8_t USBHS_Endp_Busy[];
 
-/* Endpoint Buffer */
-extern __attribute__ ((aligned (4))) uint8_t USBHS_EP0_Buf[];
-extern __attribute__ ((aligned (4))) uint8_t USBHS_EP1_Rx_Buf[];
-
 /********************************************************************************/
 /* Function Declaration */
 extern void USBHS_RCC_Init (void);

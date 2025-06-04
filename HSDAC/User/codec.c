@@ -333,16 +333,16 @@ void Codec_SetSampleRate(uint32_t sample_rate) {
 
     switch (sample_rate) {
     case 96000:
-        I2S2_PrescaleConfig(8);
+        I2S2_PrescaleConfig(6);
         timeing = 1.0f; // 1sec
         break;
     case 192000:
-        I2S2_PrescaleConfig(4);
+        I2S2_PrescaleConfig(3);
         timeing = 2.0f; // 0.25sec
         break;
     case 48000:
     default:
-        I2S2_PrescaleConfig(16);
+        I2S2_PrescaleConfig(12);
         timeing = 0.5f; // 2sec
         break;
     }

@@ -147,8 +147,8 @@ void USBHS_Device_Endp_Init (void) {
     USBHSD->UEP0_RX_CTRL = USBHS_UEP_R_RES_ACK;
 
     USBHSD->UEP1_TX_LEN = 4;
-    USBHSD->UEP1_TX_CTRL = USBHS_UEP_T_RES_NAK;
-    USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
+    USBHSD->UEP1_TX_CTRL = USBHS_UEP_T_TOG_DATA0;
+    USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_TOG_DATA0;
 
     USBHSD->UEP2_TX_LEN = 0;
     USBHSD->UEP2_TX_CTRL = USBHS_UEP_T_RES_NAK;
@@ -177,7 +177,7 @@ void USBHS_Device_Init (FunctionalState sta) {
         USBHSD->CONTROL &= ~USBHS_UC_RESET_SIE;
         USBHSD->HOST_CTRL = USBHS_UH_PHY_SUSPENDM;
         USBHSD->CONTROL = USBHS_UC_DMA_EN | USBHS_UC_INT_BUSY | USBHS_UC_SPEED_HIGH;
-        USBHSD->INT_EN = USBHS_UIE_SETUP_ACT | USBHS_UIE_TRANSFER | USBHS_UIE_DETECT | USBHS_UIE_SUSPEND;
+        USBHSD->INT_EN = USBHS_UIE_SETUP_ACT | USBHS_UIE_TRANSFER | USBHS_UIE_DETECT | USBHS_UIE_SUSPEND | USBHS_UIE_SOF_ACT;
         USBHS_Device_Endp_Init();
         USBHSD->CONTROL |= USBHS_UC_DEV_PU_EN;
 
@@ -630,11 +630,8 @@ uint32_t USBCDC_Write(const char* buf, uint32_t len) {
     return len;
 }
 
-static volatile bool is_fb_cplt_ = true;
 void USBUAC_WriteFeedback(float local_fs) {
-    if (!is_fb_cplt_) return;
     if (audio_stream_interface_work == 0) return;
-    is_fb_cplt_ = false;
     // turn sample rate into data_rate per micro frame
     // 4(unused) 12.13 3(unused)
     local_fs /= 8000.0f;
@@ -702,7 +699,6 @@ void USBHS_IRQHandler (void) {
 
             // UAC反馈传输完成
             case USBHS_UIS_TOKEN_IN | DEF_UEP1:
-                is_fb_cplt_ = true;
                 break;
 
             // CDC中断上传状态更改
@@ -766,8 +762,9 @@ void USBHS_IRQHandler (void) {
 
             /* end-point 1 data out interrupt */
             case USBHS_UIS_TOKEN_OUT | DEF_UEP1:
+            if (intst & USBHS_UIS_TOG_OK) {
                 Codec_WriteUACBuffer(USBHS_EP1_Rx_Buf, USBHSD->RX_LEN);
-                Codec_MeasureSampleRateAndReportFeedback();
+            }
                 break;
 
             // ep2 rx: CDC串口接收
@@ -785,6 +782,7 @@ void USBHS_IRQHandler (void) {
 
         /* Sof pack processing */
         case USBHS_UIS_TOKEN_SOF:
+                Codec_MeasureSampleRateAndReportFeedback();
             break;
 
         default:
@@ -959,12 +957,11 @@ void USBHS_IRQHandler (void) {
                         switch ((uint8_t)(USBHS_SetupReqIndex & 0xFF)) {
                         case (DEF_UEP1 | DEF_UEP_OUT):
                             /* Set End-point 1 OUT ACK */
-                            USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_RES_ACK;
+                            USBHSD->UEP1_RX_CTRL = USBHS_UEP_R_TOG_DATA0;
                             break;
 
                         case DEF_UEP1 | DEF_UEP_IN:
-                            USBHSD->UEP1_TX_CTRL = USBHS_UEP_T_RES_NAK;
-                            is_fb_cplt_ = true;
+                            USBHSD->UEP1_TX_CTRL = USBHS_UEP_T_TOG_DATA0;
                             break;
 
                         case (DEF_UEP2 | DEF_UEP_OUT):
@@ -1159,7 +1156,6 @@ void USBHS_IRQHandler (void) {
         USBHS_DevEnumStatus = 0;
 
         cdc_tx_cplt = true;
-        is_fb_cplt_ = true;
 
         USBHSD->DEV_AD = 0;
         USBHS_Device_Endp_Init();
