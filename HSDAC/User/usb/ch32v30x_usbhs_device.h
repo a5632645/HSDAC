@@ -115,7 +115,6 @@ extern void MCU_Sleep_Wakeup_Operate (void);
 extern uint8_t USBHS_Endp_DataUp (uint8_t endp, uint8_t *pbuf, uint16_t len, uint8_t mod);
 
 extern uint32_t USBCDC_Write(const char* buf, uint32_t len);
-extern void USBUAC_WriteFeedback(float local_fs);
 
 #ifdef __cplusplus
 }

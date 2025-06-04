@@ -37,7 +37,7 @@ const uint8_t MyCfgDescr_HS[] =
 {
     0x09,           // bLength
     0x02,           // bDescriptorType (Configuration)
-    USB_WORD(218),  // wTotalLength
+    USB_WORD(211),  // wTotalLength
     0x04,           // bNumInterfaces
     0x01,           // bConfigurationValue
     0x00,           // iConfiguration (String Index)
@@ -141,7 +141,7 @@ const uint8_t MyCfgDescr_HS[] =
     0x04,  // bDescriptorType (Interface)
     0x01,  // bInterfaceNumber
     0x01,  // bAlternateSetting (Alternate Setting 1)
-    0x02,  // bNumEndpoints (2 endpoint)
+    0x01,  // bNumEndpoints (1 endpoint)
     0x01,  // bInterfaceClass (Audio)
     0x02,  // bInterfaceSubClass (Audio Streaming)
     0x20,  // bInterfaceProtocol
@@ -172,7 +172,7 @@ const uint8_t MyCfgDescr_HS[] =
     0x07,        // bLength
     0x05,        // bDescriptorType (Endpoint)
     0x01,        // bEndpointAddress (OUT, EP1)
-    0x05,        // bmAttributes (Isochronous, async, data ep)
+    0x09,        // bmAttributes (Isochronous, adaptive, data ep)
     USB_WORD(DEF_USB_EP1_HS_SIZE),  // wMaxPacketSize (1024 bytes)
     0x01,        // bInterval (2^(X-1) frame)
 
@@ -185,13 +185,6 @@ const uint8_t MyCfgDescr_HS[] =
     0x00,        // bLockDelayUnits
     0x00, 0x00,  // wLockDelay
 
-    // Audio Streaming Feedback Endpoint Descriptor (ISO Data Endpoint)
-    0x07,        // bLength
-    0x05,        // bDescriptorType (Endpoint)
-    0x81,        // bEndpointAddress (IN, EP1)
-    0x11,        // bmAttributes (Isochronous, async, explimit feedback)
-    USB_WORD(4), // wMaxPacketSize (4 bytes)
-    0x01,        // bInterval
 
     // ---------- usb cdc as debug ----------
     // interface association descriptor
