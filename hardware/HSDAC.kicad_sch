@@ -5337,6 +5337,16 @@
 	)
 	(wire
 		(pts
+			(xy 292.1 179.07) (xy 292.1 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "07289757-6f86-465b-bcc1-c695da1163a8")
+	)
+	(wire
+		(pts
 			(xy 88.9 144.78) (xy 101.6 144.78)
 		)
 		(stroke
@@ -5564,6 +5574,16 @@
 			(type default)
 		)
 		(uuid "2453e91f-6ab7-4cf4-8695-052921b82ca9")
+	)
+	(wire
+		(pts
+			(xy 267.97 144.78) (xy 267.97 179.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "2648a268-bb28-4e7c-a29f-4682af3da471")
 	)
 	(wire
 		(pts
@@ -5927,16 +5947,6 @@
 	)
 	(wire
 		(pts
-			(xy 292.1 189.23) (xy 267.97 189.23)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4e365e04-237f-4748-b1a0-c2a396739d01")
-	)
-	(wire
-		(pts
 			(xy 148.59 49.53) (xy 148.59 59.69)
 		)
 		(stroke
@@ -6034,16 +6044,6 @@
 			(type default)
 		)
 		(uuid "571e5fcf-9acc-4c68-a1c4-fabc4de685cc")
-	)
-	(wire
-		(pts
-			(xy 267.97 168.91) (xy 267.97 144.78)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "5773be32-fdd2-4919-9e82-20410235cb33")
 	)
 	(wire
 		(pts
@@ -6194,6 +6194,16 @@
 			(type default)
 		)
 		(uuid "6410b90f-6c3c-4bc4-ae17-ad0c877664d2")
+	)
+	(wire
+		(pts
+			(xy 267.97 189.23) (xy 281.94 189.23)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6459cd13-b957-49af-b237-e6cf43c9b2a6")
 	)
 	(wire
 		(pts
@@ -6404,16 +6414,6 @@
 			(type default)
 		)
 		(uuid "75f577f7-593c-4b84-8b8f-b403abd3fa94")
-	)
-	(wire
-		(pts
-			(xy 292.1 168.91) (xy 267.97 168.91)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "76b75811-58f9-42d4-a073-17c886a7fac3")
 	)
 	(wire
 		(pts
@@ -6884,6 +6884,16 @@
 			(type default)
 		)
 		(uuid "986ef95b-a335-4ff3-8dd5-07dac9f96c0d")
+	)
+	(wire
+		(pts
+			(xy 281.94 189.23) (xy 281.94 168.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "99dd7f4b-5422-442c-aa47-29e500cdf7bc")
 	)
 	(wire
 		(pts
@@ -7747,6 +7757,16 @@
 	)
 	(wire
 		(pts
+			(xy 267.97 179.07) (xy 292.1 179.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e6cbb96e-d526-4db3-a081-ae4076c758a3")
+	)
+	(wire
+		(pts
 			(xy 88.9 137.16) (xy 142.24 137.16)
 		)
 		(stroke
@@ -7944,6 +7964,16 @@
 			(type default)
 		)
 		(uuid "fda2617c-c391-4761-aa59-8b59879c8c45")
+	)
+	(wire
+		(pts
+			(xy 281.94 168.91) (xy 292.1 168.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fdb07a2f-8166-4f12-8f23-ce69afac952e")
 	)
 	(wire
 		(pts
@@ -8526,7 +8556,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 215.9 163.83 0)
 			(effects
 				(font
@@ -9023,7 +9053,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 215.9 245.11 0)
 			(effects
 				(font
@@ -11918,7 +11948,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 229.87 269.24 0)
 			(effects
 				(font
@@ -12005,7 +12035,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 251.46 227.33 0)
 			(effects
 				(font
@@ -12161,7 +12191,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 256.54 269.24 0)
 			(effects
 				(font
@@ -12314,7 +12344,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 251.46 144.78 0)
 			(effects
 				(font
@@ -12468,7 +12498,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 215.9 128.27 0)
 			(effects
 				(font
@@ -14267,7 +14297,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 204.47 269.24 0)
 			(effects
 				(font
@@ -15934,7 +15964,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm"
+		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 215.9 209.55 0)
 			(effects
 				(font
