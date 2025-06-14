@@ -17,10 +17,10 @@
 /******************************************************************************/
 /* global define */
 /* file version */
-#define DEF_FILE_VERSION 78
+#define DEF_FILE_VERSION 1
 /* usb device info define  */
 #define DEF_USB_VID 0x1A86
-#define DEF_USB_PID 0x0011
+#define DEF_USB_PID 0x0001
 /* USB device descriptor, device serial number（bcdDevice） */
 #define DEF_IC_PRG_VER DEF_FILE_VERSION
 
