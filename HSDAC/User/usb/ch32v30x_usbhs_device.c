@@ -49,9 +49,10 @@ volatile uint8_t USBHS_DevEnumStatus;
 /* Endpoint Buffer */
 __attribute__ ((aligned (4))) uint8_t USBHS_EP0_Buf[DEF_USBD_UEP0_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP1_Rx_Buf[DEF_USB_EP1_HS_SIZE];
-__attribute__ ((aligned (4))) uint8_t USBHS_EP3_Tx_Buf[DEF_USB_EP3_HS_SIZE];
+__attribute__ ((aligned (4))) uint8_t USBHS_EP1_Tx_Buf[4];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP2_Tx_Buf[DEF_USB_EP2_HS_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP2_Rx_Buf[DEF_USB_EP2_HS_SIZE];
+__attribute__ ((aligned (4))) uint8_t USBHS_EP3_Tx_Buf[DEF_USB_EP3_HS_SIZE];
 
 /* Endpoint tx busy flag */
 volatile uint8_t USBHS_Endp_Busy[DEF_UEP_NUM];
@@ -136,6 +137,7 @@ void USBHS_Device_Endp_Init (void) {
 
     USBHSD->UEP0_DMA = (uint32_t)(uint8_t*)USBHS_EP0_Buf;
     USBHSD->UEP1_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Rx_Buf;
+    USBHSD->UEP1_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Tx_Buf;
     USBHSD->UEP2_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Tx_Buf;
     USBHSD->UEP2_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Rx_Buf;
     USBHSD->UEP3_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP3_Tx_Buf;
@@ -636,10 +638,10 @@ void USBUAC_WriteFeedback(float local_fs) {
     uint16_t intergal = (uint16_t)local_fs;
     local_fs -= intergal;
     uint16_t fraction = (uint16_t)(local_fs * 65536);
-    USBHS_EP4_Tx_Buf[0] = fraction & 0xff;
-    USBHS_EP4_Tx_Buf[1] = (fraction >> 8) & 0xff;
-    USBHS_EP4_Tx_Buf[2] = intergal & 0xff;
-    USBHS_EP4_Tx_Buf[3] = (intergal >> 8) & 0xff;
+    USBHS_EP1_Tx_Buf[0] = fraction & 0xff;
+    USBHS_EP1_Tx_Buf[1] = (fraction >> 8) & 0xff;
+    USBHS_EP1_Tx_Buf[2] = intergal & 0xff;
+    USBHS_EP1_Tx_Buf[3] = (intergal >> 8) & 0xff;
 }
 
 /*********************************************************************

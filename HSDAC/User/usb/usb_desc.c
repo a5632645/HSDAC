@@ -32,7 +32,7 @@ const uint8_t MyDevDescr[] =
     0x01,                    // bNumConfigurations 1
 };
 
-/* USBÅäÖÃÃèÊö·û(¸ßËÙ) */
+/* USBé…ç½®æè¿°ç¬¦(é«˜é€Ÿ) */
 const uint8_t MyCfgDescr_HS[] =
 {
     0x09,           // bLength

@@ -1,0 +1,12 @@
+{
+	"details": [
+		{
+			"file": "User/usb/usb_desc.h",
+			"encoding": "utf8"
+		},
+		{
+			"file": "User/usb/usb_desc.c",
+			"encoding": "utf8"
+		}
+	]
+}
