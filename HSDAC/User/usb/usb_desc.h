@@ -17,7 +17,7 @@
 /******************************************************************************/
 /* global define */
 /* file version */
-#define DEF_FILE_VERSION 1
+#define DEF_FILE_VERSION 9
 /* usb device info define  */
 #define DEF_USB_VID 0x1A86
 #define DEF_USB_PID 0x0001
@@ -74,13 +74,16 @@
 /* external variables */
 extern const uint8_t MyDevDescr[];
 extern const uint8_t MyCfgDescr_FS[];
-extern const uint8_t MyCfgDescr_HS[];
+extern const uint8_t* MyCfgDescr_HS;
 extern const uint8_t MyLangDescr[];
 extern const uint8_t MyManuInfo[];
 extern const uint8_t MyProdInfo[];
 extern const uint8_t MySerNumInfo[];
 extern const uint8_t MyQuaDesc[];
 extern const uint8_t MyBOSDesc[];
+
+#define HID_REPORT_LEN 32
+extern const uint8_t MyHIDReportDesc_HS[];
 extern uint8_t TAB_USB_FS_OSC_DESC[];
 extern uint8_t TAB_USB_HS_OSC_DESC[];
 

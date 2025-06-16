@@ -27,7 +27,7 @@
 		],
 		"projectName": "HSDAC",
 		"architecture": "RISC-V",
-		"projectType": "c"
+		"projectType": "cpp"
 	},
 	"buildConfig": {
 		"configurations": [
@@ -184,7 +184,7 @@
 						"include_files": []
 					},
 					"optimization": {
-						"cpp_language_standard": "gnucpp11",
+						"cpp_language_standard": "gnucpp17",
 						"abi_version": "0",
 						"do_not_use_exceptions": false,
 						"do_not_use_rtti": false,

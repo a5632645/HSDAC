@@ -12,6 +12,7 @@
 #include "ch32v30x_usbhs_device.h"
 #include "codec.h"
 #include "tick.h"
+#include "hid_queue.h"
 
 /******************************************************************************/
 /* Variable Definition */
@@ -53,6 +54,7 @@ __attribute__ ((aligned (4))) uint8_t USBHS_EP1_Tx_Buf[4];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP2_Tx_Buf[DEF_USB_EP2_HS_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP2_Rx_Buf[DEF_USB_EP2_HS_SIZE];
 __attribute__ ((aligned (4))) uint8_t USBHS_EP3_Tx_Buf[DEF_USB_EP3_HS_SIZE];
+__attribute__ ((aligned (4))) uint8_t USBHS_EP4_Tx_Buf[3];
 
 /* Endpoint tx busy flag */
 volatile uint8_t USBHS_Endp_Busy[DEF_UEP_NUM];
@@ -127,13 +129,15 @@ void USBHS_Device_Endp_Init (void) {
 
     USBHSD->ENDP_CONFIG = USBHS_UEP1_R_EN | USBHS_UEP1_T_EN
                         | USBHS_UEP2_T_EN | USBHS_UEP2_R_EN
-                        | USBHS_UEP3_T_EN;
+                        | USBHS_UEP3_T_EN
+                        | USBHS_UEP4_T_EN | USBHS_UEP4_R_EN;
     USBHSD->ENDP_TYPE = USBHS_UEP1_R_TYPE | USBHS_UEP1_T_TYPE;
 
     USBHSD->UEP0_MAX_LEN = DEF_USBD_UEP0_SIZE;
     USBHSD->UEP1_MAX_LEN = DEF_USB_EP1_HS_SIZE;
     USBHSD->UEP2_MAX_LEN = DEF_USB_EP2_HS_SIZE;
     USBHSD->UEP3_MAX_LEN = DEF_USB_EP3_HS_SIZE;
+    USBHSD->UEP4_MAX_LEN = 3;
 
     USBHSD->UEP0_DMA = (uint32_t)(uint8_t*)USBHS_EP0_Buf;
     USBHSD->UEP1_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP1_Rx_Buf;
@@ -141,6 +145,8 @@ void USBHS_Device_Endp_Init (void) {
     USBHSD->UEP2_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Tx_Buf;
     USBHSD->UEP2_RX_DMA = (uint32_t)(uint8_t*)USBHS_EP2_Rx_Buf;
     USBHSD->UEP3_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP3_Tx_Buf;
+    USBHSD->UEP4_TX_DMA = (uint32_t)(uint8_t*)USBHS_EP4_Tx_Buf;
+    USBHSD->UEP4_RX_DMA = (uint32_t)&g_hid_queue.events_[g_hid_queue.wpos_];
 
     USBHSD->UEP0_TX_LEN = 0;
     USBHSD->UEP0_TX_CTRL = USBHS_UEP_T_RES_ACK;
@@ -156,6 +162,10 @@ void USBHS_Device_Endp_Init (void) {
 
     USBHSD->UEP3_TX_LEN = 0;
     USBHSD->UEP3_TX_CTRL = USBHS_UEP_T_RES_NAK;
+
+    USBHSD->UEP4_TX_LEN = 0;
+    USBHSD->UEP4_TX_CTRL = USBHS_UEP_T_RES_NAK;
+    USBHSD->UEP4_RX_CTRL = USBHS_UEP_R_RES_ACK;
 
     /* Clear End-points Busy Status */
     for (uint8_t i = 0; i < DEF_UEP_NUM; i++) {
@@ -276,6 +286,7 @@ uint8_t USBHS_Endp_DataUp (uint8_t endp, uint8_t *pbuf, uint16_t len, uint8_t mo
 #define errflag _errflag
 #define notsupport _errflag = 0xff
 #define ssupport _errflag = 0
+#define halt while(1){}
 
 enum {
     UAC_CLASS_REQ_RECIVER_DEVICE = 0,
@@ -294,6 +305,8 @@ static const uint8_t com_cfg[] = {
     USB_DWORD(115200), 1, 0, 8, 1
 };
 
+static uint8_t HID_IDLE = 0;
+
 static uint16_t len = 0;
 static uint32_t sample_rate = 48000;
 static uint8_t audio_stream_interface_work = 0;
@@ -308,17 +321,7 @@ static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
             errflag = 0xff;
             break;
         case UAC_CLASS_REQ_RECIVER_INTERFACE: {
-            if (USBHS_SetupReqCode == CDC_SET_LINE_CODING) {
-                ssupport;
-            }
-            else if (USBHS_SetupReqCode == CDC_SET_LINE_CTLSTE) {
-                ssupport;
-            }
-            else if (USBHS_SetupReqCode == CDC_GET_LINE_CODING) {
-                memcpy(USBHS_EP0_Buf, com_cfg, sizeof(com_cfg));
-                len = 7;
-            }
-            else if ((USBHS_SetupReqIndex & 0xff) == 0) {
+            if ((USBHS_SetupReqIndex & 0xff) == 0) {
                 // audio control
                 switch (USBHS_SetupReqIndex >> 8) {
                 case 0x04: { // feature unit
@@ -430,8 +433,62 @@ static uint8_t USBHS_UAC_Setup(uint8_t _errflag) {
                 }
             }
             else if ((USBHS_SetupReqIndex & 0xff) == 1) {
-                errflag = 0xff;
-                // ssupport;
+                // audio stream
+                notsupport;
+            }
+            else if ((USBHS_SetupReqIndex & 0xff) == 2) {
+                // cdc control
+                if (USBHS_SetupReqCode == CDC_SET_LINE_CODING) {
+                    ssupport;
+                }
+                else if (USBHS_SetupReqCode == CDC_SET_LINE_CTLSTE) {
+                    ssupport;
+                }
+                else if (USBHS_SetupReqCode == CDC_GET_LINE_CODING) {
+                    memcpy(USBHS_EP0_Buf, com_cfg, sizeof(com_cfg));
+                    len = 7;
+                }
+                else {
+                    notsupport;
+                }
+            }
+            else if ((USBHS_SetupReqIndex & 0xff) == 3) {
+                // cdc data
+                notsupport;
+            }
+            else if ((USBHS_SetupReqIndex & 0xff) == 4) {
+                // hid
+                switch (USBHS_SetupReqCode) {
+                case HID_SET_REPORT:
+                    notsupport;
+                    break;
+                case HID_GET_REPORT:
+                    if (USBHS_SetupReqIndex == 0) {
+                        len = HID_REPORT_LEN > USBHS_SetupReqLen ? USBHS_SetupReqLen : HID_REPORT_LEN;
+                        uint32_t tf_len = len > DEF_USBD_UEP0_SIZE ? DEF_USBD_UEP0_SIZE : len;
+                        memcpy(USBHS_EP0_Buf, MyHIDReportDesc_HS, tf_len);
+                    }
+                    else {
+                        notsupport;
+                    }
+                    break;
+                case HID_SET_IDLE:
+                    ssupport;
+                    break;
+                case HID_SET_PROTOCOL:
+                    notsupport;
+                    break;
+                case HID_GET_IDLE:
+                    USBHS_EP0_Buf[0] = HID_IDLE;
+                    len = 1;
+                    break;
+                case HID_GET_PROTOCOL:
+                    notsupport;
+                    break;
+                default:
+                    notsupport;
+                    break;
+                }
             }
         }
             break;
@@ -459,16 +516,7 @@ static uint8_t USBHS_UAC_RX(uint8_t _errflag) {
             errflag = 0xff;
             break;
         case UAC_CLASS_REQ_RECIVER_INTERFACE: {
-            if (USBHS_SetupReqCode == CDC_SET_LINE_CODING) {
-                ssupport;
-            }
-            else if (USBHS_SetupReqCode == CDC_SET_LINE_CTLSTE) {
-                ssupport;
-            }
-            else if (USBHS_SetupReqCode == CDC_GET_LINE_CODING) {
-                ssupport;
-            }
-            else if ((USBHS_SetupReqIndex & 0xff) == 0) {
+            if ((USBHS_SetupReqIndex & 0xff) == 0) {
                 // audio control
                 switch (USBHS_SetupReqIndex >> 8) {
                 case 0x04: { // feature unit
@@ -588,7 +636,54 @@ static uint8_t USBHS_UAC_RX(uint8_t _errflag) {
                 }
             }
             else if ((USBHS_SetupReqIndex & 0xff) == 1) {
-                errflag = 0xff;
+                // audio stream
+                notsupport;
+            }
+            else if ((USBHS_SetupReqIndex & 0xff) == 2) {
+                // cdc control
+                if (USBHS_SetupReqCode == CDC_SET_LINE_CODING) {
+                    ssupport;
+                }
+                else if (USBHS_SetupReqCode == CDC_SET_LINE_CTLSTE) {
+                    ssupport;
+                }
+                else if (USBHS_SetupReqCode == CDC_GET_LINE_CODING) {
+                    ssupport;
+                }
+                else {
+                    notsupport;
+                }
+            }
+            else if ((USBHS_SetupReqIndex & 0xff) == 3) {
+                // cdc data
+                notsupport;
+            }
+            else if ((USBHS_SetupReqIndex & 0xff) == 4) {
+                //hid
+                switch (USBHS_SetupReqCode) {
+                case HID_SET_REPORT:
+                    notsupport;
+                    break;
+                case HID_GET_REPORT:
+                    notsupport;
+                    break;
+                case HID_SET_IDLE:
+                    HID_IDLE = USBHS_EP0_Buf[0];
+                    ssupport;
+                    break;
+                case HID_SET_PROTOCOL:
+                    notsupport;
+                    break;
+                case HID_GET_IDLE:
+                    ssupport;
+                    break;
+                case HID_GET_PROTOCOL:
+                    notsupport;
+                    break;
+                default:
+                    notsupport;
+                    break;
+                }
             }
         }
             break;
@@ -733,6 +828,10 @@ void USBHS_IRQHandler (void) {
             }
                 break;
 
+            // HID UPLOAD
+            case USBHS_UIS_TOKEN_IN | DEF_UEP4:
+                break;
+
             default:
                 break;
             }
@@ -772,6 +871,22 @@ void USBHS_IRQHandler (void) {
             if (intst & USBHS_UIS_TOG_OK) {
                 USBHSD->UEP2_RX_CTRL ^= USBHS_UEP_R_TOG_DATA1;
                 USBHSD->UEP2_RX_CTRL = (USBHSD->UEP2_RX_CTRL & ~USBHS_UEP_R_RES_MASK) | USBHS_UEP_R_RES_ACK;
+            }
+                break;
+
+            // HID SET
+            case USBHS_UIS_TOKEN_OUT | DEF_UEP4:
+            if (intst & USBHS_UIS_TOG_OK) {
+                USBHSD->UEP4_RX_CTRL ^= USBHS_UEP_R_TOG_DATA1;
+                ++g_hid_queue.num_;
+                struct HID_Event* e = HID_Queue_NextDMAItem_IRQ(&g_hid_queue);
+                if (e == NULL) {
+                    USBHSD->UEP4_RX_CTRL = (USBHSD->UEP4_RX_CTRL & ~USBHS_UEP_R_RES_MASK) | USBHS_UEP_R_RES_NAK;
+                }
+                else {
+                    USBHSD->UEP4_RX_DMA = (uint32_t)e;
+                    USBHSD->UEP4_RX_CTRL = (USBHSD->UEP4_RX_CTRL & ~USBHS_UEP_R_RES_MASK) | USBHS_UEP_R_RES_ACK;
+                }
             }
                 break;
 
@@ -904,6 +1019,21 @@ void USBHS_IRQHandler (void) {
                         len = DEF_USBD_CONFIG_HS_DESC_LEN;
                     } else {
                         errflag = 0xFF;
+                    }
+                    break;
+
+                // 这是噩梦，复合设备的HID report居然走的标准请求，和HID_Description<1>的type匹配
+                case 0x22:
+                    // HID报表的ID
+                    switch (USBHS_SetupReqValue & 0xff) {
+                    case 0: {
+                        pUSBHS_Descr = MyHIDReportDesc_HS;
+                        len = HID_REPORT_LEN;
+                    }
+                        break;
+                    default:
+                        errflag = 0xff;
+                        break;
                     }
                     break;
 

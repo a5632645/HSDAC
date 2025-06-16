@@ -4,6 +4,7 @@
 #include "tick.h"
 #include "ch32v30x_gpio.h"
 #include "usb/ch32v30x_usbhs_device.h"
+#include "hid_queue.h"
 
 static void ES9018K_Init(void) {
     Codec_Init();
@@ -41,7 +42,7 @@ int main(void) {
     uint32_t t2 = Tick_GetTick();
     for (;;) {
         uint32_t ct = Tick_GetTick();
-        if ((ct - t) > 100) {
+        if ((ct - t) > 1000) {
             t = ct;
 
             if (USBHS_DevEnumStatus) {
@@ -59,5 +60,15 @@ int main(void) {
         }
 
         Codec_CheckVolumeEvent();
+
+        uint32_t len;
+        HID_Queue_Read(&g_hid_queue, &len);
+        for (uint32_t i = 0; i < len; ++i) {
+            struct HID_Event* e = HID_Queue_GetItem(&g_hid_queue, i);
+            if (USBHS_DevEnumStatus) {
+                printf("[hid]get event, type:%d\treg: %d\tval:%d\n\r", (int)e->type, (int)e->reg, (int)e->val);
+            }
+        }
+        HID_Queue_Finish(&g_hid_queue, len);
     }
 }
