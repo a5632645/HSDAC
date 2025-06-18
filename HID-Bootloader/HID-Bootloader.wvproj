@@ -18,14 +18,9 @@
 				"parentLogicPath": "",
 				"type": "file",
 				"name": "*.wvproj"
-			},
-			{
-				"parentLogicPath": "User",
-				"type": "file",
-				"name": "LED.c"
 			}
 		],
-		"projectName": "HSDAC",
+		"projectName": "HID-Bootloader",
 		"architecture": "RISC-V",
 		"projectType": "cpp"
 	},
@@ -51,13 +46,13 @@
 					"architecture": "rv32i",
 					"multiply_extension": true,
 					"atomic_extension": true,
-					"floating_point": "single",
+					"floating_point": "none",
 					"compressed_extension": true,
 					"extra_compressed_extension": true,
 					"bit_extension": false,
 					"multiplication_subset_of_the_M_extension": false,
 					"integer_ABI": "ilp32",
-					"floating_point_ABI": "single",
+					"floating_point_ABI": "none",
 					"tuning": "default",
 					"code_model": "default",
 					"small_data_limit": 8,
@@ -66,13 +61,13 @@
 					"other_target_flags": ""
 				},
 				"optimization": {
-					"level": "more",
-					"message_length": false,
+					"level": "size",
+					"message_length": true,
 					"char_is_signed": true,
 					"function_sections": true,
 					"data_sections": true,
 					"no_common_unitialized": true,
-					"do_not_inline_functions": true,
+					"do_not_inline_functions": false,
 					"assume_freestanding_environment": false,
 					"disable_builtin": false,
 					"single_precision_constants": false,
@@ -92,8 +87,8 @@
 					"inhibit_all_warnings": false,
 					"warn_on_various_unused_elements": true,
 					"warn_on_uninitialized_variables": true,
-					"enable_all_common_warnings": true,
-					"enable_extra_warnings": true,
+					"enable_all_common_warnings": false,
+					"enable_extra_warnings": false,
 					"warn_on_undeclared_global_function": false,
 					"warn_on_implicit_conversions": false,
 					"warn_if_pointer_arthmetic": false,
@@ -154,7 +149,7 @@
 						"include_files": []
 					},
 					"optimization": {
-						"language_standard": "gnu11",
+						"language_standard": "gnu99",
 						"other_optimization_flags": ""
 					},
 					"warnings": {
@@ -608,8 +603,8 @@
 	"flashConfig": {
 		"mcutype": "CH32V30x",
 		"address": "0x08000000",
-		"target_path": "obj\\HSDAC.hex",
-		"clkSpeed": "Middle",
+		"target_path": "obj\\HID-Bootloader.hex",
+		"clkSpeed": "High",
 		"debug_interface_mode": "1-wire serial",
 		"erase": false,
 		"program": true,
@@ -650,7 +645,7 @@
 		},
 		"startup": {
 			"initCommands": {
-				"initReset": false,
+				"initReset": true,
 				"initResetType": "init",
 				"additionalCommands": [],
 				"armSemihosting": false,
@@ -673,8 +668,8 @@
 				"runResetType": "halt",
 				"additionalCommands": [],
 				"setBreakAt": "main",
-				"continue": false,
-				"setBreak": false,
+				"continue": true,
+				"setBreak": true,
 				"setProgramCounter": false,
 				"setProgramCounterAddress": ""
 			},
@@ -687,8 +682,8 @@
 			"showDebugOutputTimestamps": true
 		},
 		"reserve": {
-			"PROGRAM_NAME": "obj/HSDAC.elf",
-			"PROJECT_ATTR": "HSDAC",
+			"PROGRAM_NAME": "obj/HID-Bootloader.elf",
+			"PROJECT_ATTR": "HID-Bootloader",
 			"PROJECT_BUILD_CONFIG_AUTO_ATTR": true,
 			"PROJECT_BUILD_CONFIG_ID_ATTR": "",
 			"ATTR_BUILD_BEFORE_LAUNCH_ATTR": 2,

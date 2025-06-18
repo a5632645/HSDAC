@@ -4,8 +4,8 @@
 		{
 			"type": "mrs-debugger",
 			"request": "launch",
-			"name": "HSDAC",
-			"cwd": "c:\\Users\\Kawai\\Desktop\\HSDAC\\HSDAC",
+			"name": "HID-Bootloader",
+			"cwd": "c:\\Users\\Kawai\\Desktop\\HSDAC\\HID-Bootloader",
 			"openOCDCfg": {
 				"useLocalOpenOCD": true,
 				"executable": "c:/MounRiver/MounRiver_Studio2/resources/app/resources/win32/components/WCH/OpenOCD/OpenOCD/bin/openocd.exe",
@@ -33,14 +33,14 @@
 			},
 			"startup": {
 				"initCommands": {
-					"initReset": false,
+					"initReset": true,
 					"initResetType": "init",
 					"armSemihosting": false,
 					"additionalCommands": []
 				},
 				"loadedFiles": {
-					"executableFile": "c:\\Users\\Kawai\\Desktop\\HSDAC\\HSDAC\\obj\\HSDAC.elf",
-					"symbolFile": "c:\\Users\\Kawai\\Desktop\\HSDAC\\HSDAC\\obj\\HSDAC.elf",
+					"executableFile": "c:\\Users\\Kawai\\Desktop\\HSDAC\\HID-Bootloader\\obj\\HID-Bootloader.elf",
+					"symbolFile": "c:\\Users\\Kawai\\Desktop\\HSDAC\\HID-Bootloader\\obj\\HID-Bootloader.elf",
 					"executableFileOffset": 0,
 					"symbolFileOffset": 0
 				},
@@ -48,8 +48,8 @@
 					"runReset": true,
 					"runResetType": "halt",
 					"additionalCommands": [],
-					"setBreakAt": "",
-					"continue": false,
+					"setBreakAt": "main",
+					"continue": true,
 					"setProgramCounterAt": 0
 				},
 				"debugInRAM": false

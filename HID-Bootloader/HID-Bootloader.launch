@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launchConfiguration type="com.mounriver.debug.gdbjtag.openocd.launchConfigurationType">
   <booleanAttribute key="com.mounriver.debug.gdbjtag.openocd.doStartGdbServer" value="true"/>
-  <booleanAttribute key="com.mounriver.debug.gdbjtag.openocd.doFirstReset" value="false"/>
+  <booleanAttribute key="com.mounriver.debug.gdbjtag.openocd.doFirstReset" value="true"/>
   <booleanAttribute key="com.mounriver.debug.gdbjtag.openocd.enableSemihosting" value="false"/>
   <booleanAttribute key="com.mounriver.debug.gdbjtag.openocd.enableSemihostingNew" value="false"/>
   <booleanAttribute key="com.mounriver.debug.gdbjtag.openocd.doDebugInRam" value="false"/>
@@ -11,9 +11,9 @@
   <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.loadImage" value="true"/>
   <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.useProjBinaryForImage" value="true"/>
   <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.useFileForImage" value="false"/>
-  <booleanAttribute key="com.mounriver.debug.gdbjtag.openocd.doContinue" value="false"/>
+  <booleanAttribute key="com.mounriver.debug.gdbjtag.openocd.doContinue" value="true"/>
   <booleanAttribute key="com.mounriver.debug.gdbjtag.openocd.doSecondReset" value="true"/>
-  <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.setStopAt" value="false"/>
+  <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.setStopAt" value="true"/>
   <booleanAttribute key="org.eclipse.cdt.debug.gdbjtag.core.setPcRegister" value="false"/>
   <booleanAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_AUTO_ATTR" value="true"/>
   <booleanAttribute key="com.mounriver.debug.gdbjtag.openocd.doGdbServerAllocateConsole" value="true"/>
@@ -40,8 +40,8 @@
   <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.stopAt" value="main"/>
   <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.pcRegister" value=""/>
   <stringAttribute key="com.mounriver.debug.gdbjtag.svdPath" value="${eclipse_home}template/wizard/WCH/RISC-V/CH32V305/NoneOS/CH32V305xx.svd"/>
-  <stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="obj/HSDAC.elf"/>
-  <stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="HSDAC"/>
+  <stringAttribute key="org.eclipse.cdt.launch.PROGRAM_NAME" value="obj/HID-Bootloader.elf"/>
+  <stringAttribute key="org.eclipse.cdt.launch.PROJECT_ATTR" value="HID-Bootloader"/>
   <stringAttribute key="org.eclipse.cdt.launch.PROJECT_BUILD_CONFIG_ID_ATTR" value=""/>
   <stringAttribute key="org.eclipse.cdt.debug.gdbjtag.core.jtagDevice" value="GNU MCU OpenOCD"/>
   <stringAttribute key="com.mounriver.debug.gdbjtag.openocd.gdbServerConnectionAddress" value=""/>
@@ -54,7 +54,7 @@
   <intAttribute key="org.eclipse.cdt.debug.gdbjtag.core.portNumber" value="3333"/>
   <intAttribute key="org.eclipse.cdt.launch.ATTR_BUILD_BEFORE_LAUNCH_ATTR" value="2"/>
   <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_PATHS">
-    <listEntry value="HSDAC"/>
+    <listEntry value="HID-Bootloader"/>
   </listAttribute>
   <listAttribute key="org.eclipse.debug.core.MAPPED_RESOURCE_TYPES">
     <listEntry value="4"/>
