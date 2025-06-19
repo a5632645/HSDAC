@@ -1,0 +1,13 @@
+{
+    "clangd.arguments": [
+        "--background-index",
+        "--compile-commands-dir=${workspaceFolder}/build/x64-debug",
+        "-j=12",
+        "--all-scopes-completion",
+        "--completion-style=detailed",
+        "--header-insertion=iwyu",
+        "--pch-storage=disk",
+        "--clang-tidy",
+    ],
+    "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools",
+}

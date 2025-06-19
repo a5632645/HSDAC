@@ -1,3 +1,4 @@
 hardware/jlcpcb/
 hardware/HSDAC-backups/
 HSDAC/Obj/
+dfu/build/
