@@ -4,27 +4,57 @@
 // directly. If you need to remain compatible with Projucer-generated builds, and
 // have called `juce_generate_juce_header(<thisTarget>)` in your CMakeLists.txt,
 // you could `#include <JuceHeader.h>` here instead, to make all your module headers visible.
+#include "juce_core/juce_core.h"
+#include "juce_events/juce_events.h"
+#include "juce_gui_basics/juce_gui_basics.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 #include <libusb.h>
+#include <memory>
 
-//==============================================================================
-/*
-    This component lives inside our window, and this is where you should put all
-    your controls and content.
-*/
-class MainComponent final : public juce::Component
-{
+enum class eMyDevice {
+    None,
+    UAC,
+    BOOT
+};
+
+class MainComponent final : public juce::Component, private juce::Timer {
 public:
-    //==============================================================================
-    MainComponent();
+    static constexpr int kInitAutoConnectDelayMs = 100;
+    static constexpr int kMaxAutoConnectDelayMs = 5000;
 
-    //==============================================================================
+    MainComponent();
+    ~MainComponent() override;
+
     void paint (juce::Graphics&) override;
     void resized() override;
 
 private:
-    //==============================================================================
-    // Your private member variables go here...
+    void timerCallback() override;
+    void ShowError(const juce::String& error, bool exit);
+    void StartBootloaderFlash();
+    void ResetToBootloader();
+    void OnUsbDeviceConnect(eMyDevice device);
+    void OnUsbDeviceDisconnect(eMyDevice device);
+    bool IsDeviceActive(eMyDevice device);
 
+    struct StateReq {
+        int error_;
+        int val;
+    };
+    StateReq GetBootState();
+    StateReq GetLastAppState();
+    void SendEndPackToBootloader();
+
+    libusb_context* usb_context_{};
+    libusb_device_handle* usb_device_handle_{};
+    eMyDevice current_device_{ eMyDevice::None };
+
+    juce::Label device_state_;
+    juce::TextButton update_button_;
+    juce::Label firmware_path_;
+    juce::TextButton firmware_path_choose_;
+    std::unique_ptr<juce::FileChooser> firmware_chooser_;
+
+    juce::TextButton test_button_;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

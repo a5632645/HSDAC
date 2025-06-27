@@ -6,4 +6,5 @@
   (lib (name "ES9018K2M")(type "KiCad")(uri "${KIPRJMOD}/3rd/symbol/ES9018K2M.kicad_sym")(options "")(descr ""))
   (lib (name "MAX97220AETE+T")(type "KiCad")(uri "${KIPRJMOD}/3rd/symbol/MAX97220AETE+T.kicad_sym")(options "")(descr ""))
   (lib (name "SM07B-SRSS-TB__LF__SN_")(type "KiCad")(uri "${KIPRJMOD}/3rd/symbol/SM07B-SRSS-TB__LF__SN_.kicad_sym")(options "")(descr ""))
+  (lib (name "TPS65131RGER")(type "KiCad")(uri "${KIPRJMOD}/3rd/symbol/TPS65131RGER.kicad_sym")(options "")(descr ""))
 )

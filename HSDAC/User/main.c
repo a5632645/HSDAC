@@ -66,7 +66,26 @@ int main(void) {
         for (uint32_t i = 0; i < len; ++i) {
             struct HID_Event* e = HID_Queue_GetItem(&g_hid_queue, i);
             if (USBHS_DevEnumStatus) {
-                printf("[hid]get event, type:%d\treg: %d\tval:%d\n\r", (int)e->type, (int)e->reg, (int)e->val);
+                printf("[hid]type: %d, reg: %d, val: %d\n\r", (int)e->type, e->reg, e->val);
+            }
+
+            if (e->type == 0) {
+                // dac param setting
+                Codec_PollWrite(e->reg, e->val);
+                Delay_Ms(10);
+            }
+            else if (e->type == 1 && e->reg == 0x12 && e->val == 0x34) {
+                // firmware update
+                RCC_APB1PeriphClockCmd( RCC_APB1Periph_PWR | RCC_APB1Periph_BKP, ENABLE );
+                BKP_TamperPinCmd( DISABLE );
+                PWR_BackupAccessCmd( ENABLE );
+                BKP_ClearFlag();
+
+                BKP_WriteBackupRegister(BKP_DR1, 0x1234);
+                BKP_WriteBackupRegister(BKP_DR2, 0x5678);
+                Codec_DeInit();
+                USBHS_Device_Init(DISABLE);
+                NVIC_SystemReset();
             }
         }
         HID_Queue_Finish(&g_hid_queue, len);

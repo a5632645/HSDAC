@@ -1,7 +1,7 @@
 Archive member included to satisfy reference by file (symbol)
 
 c:/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/rv32imacxw/ilp32\libgcc.a(save-restore.o)
-                              ./Peripheral/src/ch32v30x_flash.o (__riscv_save_7)
+                              ./User/main.o (__riscv_save_9)
 c:/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32imacxw/ilp32\libg_nano.a(lib_a-memcpy.o)
                               ./User/usb/ch32v30x_usbhs_device.o (memcpy)
 c:/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32imacxw/ilp32\libg_nano.a(lib_a-memset.o)
@@ -16,6 +16,8 @@ Discarded input sections
                 0x0000000000000000      0x122 ./User/usb/ch32v30x_usbhs_device.o
  .text.USBHS_Send_Resume
                 0x0000000000000000        0x2 ./User/usb/ch32v30x_usbhs_device.o
+ .text.HID_GetDataLen
+                0x0000000000000000        0xa ./User/usb/ch32v30x_usbhs_device.o
  .text          0x0000000000000000        0x0 ./User/usb/usb_conf.o
  .data          0x0000000000000000        0x0 ./User/usb/usb_conf.o
  .bss           0x0000000000000000        0x0 ./User/usb/usb_conf.o
@@ -1614,7 +1616,7 @@ END GROUP
                 0x00000000000001c0                . = ALIGN (0x40)
  *fill*         0x00000000000001a4       0x1c 
 
-.text           0x00000000000001c0     0x1590
+.text           0x00000000000001c0     0x1594
                 0x00000000000001c0                . = ALIGN (0x4)
  *(.text)
  .text          0x00000000000001c0       0x60 c:/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/rv32imacxw/ilp32\libgcc.a(save-restore.o)
@@ -1674,259 +1676,255 @@ END GROUP
  .text.HID_GetDataPtr
                 0x0000000000000cd0        0x6 ./User/usb/ch32v30x_usbhs_device.o
                 0x0000000000000cd0                HID_GetDataPtr
- .text.HID_GetDataLen
-                0x0000000000000cd6        0x6 ./User/usb/ch32v30x_usbhs_device.o
-                0x0000000000000cd6                HID_GetDataLen
  .text.NMI_Handler
-                0x0000000000000cdc        0x2 ./User/ch32v30x_it.o
-                0x0000000000000cdc                NMI_Handler
+                0x0000000000000cd6        0x2 ./User/ch32v30x_it.o
+                0x0000000000000cd6                NMI_Handler
  .text.HardFault_Handler
-                0x0000000000000cde       0x10 ./User/ch32v30x_it.o
-                0x0000000000000cde                HardFault_Handler
+                0x0000000000000cd8       0x10 ./User/ch32v30x_it.o
+                0x0000000000000cd8                HardFault_Handler
  .text.startup.main
-                0x0000000000000cee      0x1c2 ./User/main.o
-                0x0000000000000cee                main
+                0x0000000000000ce8      0x1cc ./User/main.o
+                0x0000000000000ce8                main
  .text.SystemInit
-                0x0000000000000eb0       0xfa ./User/system_ch32v30x.o
-                0x0000000000000eb0                SystemInit
+                0x0000000000000eb4       0xfa ./User/system_ch32v30x.o
+                0x0000000000000eb4                SystemInit
  .text.SystemCoreClockUpdate
-                0x0000000000000faa      0x12a ./User/system_ch32v30x.o
-                0x0000000000000faa                SystemCoreClockUpdate
+                0x0000000000000fae      0x12a ./User/system_ch32v30x.o
+                0x0000000000000fae                SystemCoreClockUpdate
  .text.vector_handler
-                0x00000000000010d4        0x2 ./Startup/startup_ch32v30x_D8C.o
-                0x00000000000010d4                EXTI2_IRQHandler
-                0x00000000000010d4                TIM8_TRG_COM_IRQHandler
-                0x00000000000010d4                TIM8_CC_IRQHandler
-                0x00000000000010d4                UART8_IRQHandler
-                0x00000000000010d4                TIM1_CC_IRQHandler
-                0x00000000000010d4                TIM6_IRQHandler
-                0x00000000000010d4                SysTick_Handler
-                0x00000000000010d4                PVD_IRQHandler
-                0x00000000000010d4                SDIO_IRQHandler
-                0x00000000000010d4                TIM9_BRK_IRQHandler
-                0x00000000000010d4                DMA2_Channel8_IRQHandler
-                0x00000000000010d4                CAN2_RX1_IRQHandler
-                0x00000000000010d4                EXTI3_IRQHandler
-                0x00000000000010d4                DMA2_Channel9_IRQHandler
-                0x00000000000010d4                TIM10_CC_IRQHandler
-                0x00000000000010d4                USBFS_IRQHandler
-                0x00000000000010d4                EXTI0_IRQHandler
-                0x00000000000010d4                I2C2_EV_IRQHandler
-                0x00000000000010d4                TIM10_TRG_COM_IRQHandler
-                0x00000000000010d4                CAN2_SCE_IRQHandler
-                0x00000000000010d4                ADC1_2_IRQHandler
-                0x00000000000010d4                Break_Point_Handler
-                0x00000000000010d4                SPI1_IRQHandler
-                0x00000000000010d4                TAMPER_IRQHandler
-                0x00000000000010d4                CAN2_RX0_IRQHandler
-                0x00000000000010d4                TIM8_UP_IRQHandler
-                0x00000000000010d4                Ecall_M_Mode_Handler
-                0x00000000000010d4                DMA2_Channel2_IRQHandler
-                0x00000000000010d4                DMA1_Channel4_IRQHandler
-                0x00000000000010d4                TIM9_UP_IRQHandler
-                0x00000000000010d4                USART3_IRQHandler
-                0x00000000000010d4                RTC_IRQHandler
-                0x00000000000010d4                DMA1_Channel7_IRQHandler
-                0x00000000000010d4                CAN1_RX1_IRQHandler
-                0x00000000000010d4                DVP_IRQHandler
-                0x00000000000010d4                UART5_IRQHandler
-                0x00000000000010d4                TIM4_IRQHandler
-                0x00000000000010d4                DMA2_Channel1_IRQHandler
-                0x00000000000010d4                I2C1_EV_IRQHandler
-                0x00000000000010d4                DMA1_Channel6_IRQHandler
-                0x00000000000010d4                UART4_IRQHandler
-                0x00000000000010d4                DMA2_Channel4_IRQHandler
-                0x00000000000010d4                TIM3_IRQHandler
-                0x00000000000010d4                RCC_IRQHandler
-                0x00000000000010d4                TIM1_TRG_COM_IRQHandler
-                0x00000000000010d4                DMA1_Channel1_IRQHandler
-                0x00000000000010d4                DMA2_Channel7_IRQHandler
-                0x00000000000010d4                EXTI15_10_IRQHandler
-                0x00000000000010d4                TIM7_IRQHandler
-                0x00000000000010d4                CAN2_TX_IRQHandler
-                0x00000000000010d4                TIM5_IRQHandler
-                0x00000000000010d4                EXTI9_5_IRQHandler
-                0x00000000000010d4                ETH_WKUP_IRQHandler
-                0x00000000000010d4                SPI2_IRQHandler
-                0x00000000000010d4                TIM10_BRK_IRQHandler
-                0x00000000000010d4                TIM9_CC_IRQHandler
-                0x00000000000010d4                DMA2_Channel5_IRQHandler
-                0x00000000000010d4                DMA1_Channel5_IRQHandler
-                0x00000000000010d4                EXTI4_IRQHandler
-                0x00000000000010d4                USB_LP_CAN1_RX0_IRQHandler
-                0x00000000000010d4                RNG_IRQHandler
-                0x00000000000010d4                USB_HP_CAN1_TX_IRQHandler
-                0x00000000000010d4                DMA1_Channel3_IRQHandler
-                0x00000000000010d4                ETH_IRQHandler
-                0x00000000000010d4                TIM1_UP_IRQHandler
-                0x00000000000010d4                WWDG_IRQHandler
-                0x00000000000010d4                USBHSWakeup_IRQHandler
-                0x00000000000010d4                DMA2_Channel11_IRQHandler
-                0x00000000000010d4                Ecall_U_Mode_Handler
-                0x00000000000010d4                DMA2_Channel6_IRQHandler
-                0x00000000000010d4                TIM2_IRQHandler
-                0x00000000000010d4                SW_Handler
-                0x00000000000010d4                TIM1_BRK_IRQHandler
-                0x00000000000010d4                DMA2_Channel10_IRQHandler
-                0x00000000000010d4                EXTI1_IRQHandler
-                0x00000000000010d4                RTCAlarm_IRQHandler
-                0x00000000000010d4                TIM10_UP_IRQHandler
-                0x00000000000010d4                TIM9_TRG_COM_IRQHandler
-                0x00000000000010d4                UART7_IRQHandler
-                0x00000000000010d4                USART2_IRQHandler
-                0x00000000000010d4                UART6_IRQHandler
-                0x00000000000010d4                I2C2_ER_IRQHandler
-                0x00000000000010d4                DMA1_Channel2_IRQHandler
-                0x00000000000010d4                TIM8_BRK_IRQHandler
-                0x00000000000010d4                CAN1_SCE_IRQHandler
-                0x00000000000010d4                FLASH_IRQHandler
-                0x00000000000010d4                USART1_IRQHandler
-                0x00000000000010d4                SPI3_IRQHandler
-                0x00000000000010d4                I2C1_ER_IRQHandler
-                0x00000000000010d4                USBWakeUp_IRQHandler
-                0x00000000000010d4                DMA2_Channel3_IRQHandler
+                0x00000000000010d8        0x2 ./Startup/startup_ch32v30x_D8C.o
+                0x00000000000010d8                EXTI2_IRQHandler
+                0x00000000000010d8                TIM8_TRG_COM_IRQHandler
+                0x00000000000010d8                TIM8_CC_IRQHandler
+                0x00000000000010d8                UART8_IRQHandler
+                0x00000000000010d8                TIM1_CC_IRQHandler
+                0x00000000000010d8                TIM6_IRQHandler
+                0x00000000000010d8                SysTick_Handler
+                0x00000000000010d8                PVD_IRQHandler
+                0x00000000000010d8                SDIO_IRQHandler
+                0x00000000000010d8                TIM9_BRK_IRQHandler
+                0x00000000000010d8                DMA2_Channel8_IRQHandler
+                0x00000000000010d8                CAN2_RX1_IRQHandler
+                0x00000000000010d8                EXTI3_IRQHandler
+                0x00000000000010d8                DMA2_Channel9_IRQHandler
+                0x00000000000010d8                TIM10_CC_IRQHandler
+                0x00000000000010d8                USBFS_IRQHandler
+                0x00000000000010d8                EXTI0_IRQHandler
+                0x00000000000010d8                I2C2_EV_IRQHandler
+                0x00000000000010d8                TIM10_TRG_COM_IRQHandler
+                0x00000000000010d8                CAN2_SCE_IRQHandler
+                0x00000000000010d8                ADC1_2_IRQHandler
+                0x00000000000010d8                Break_Point_Handler
+                0x00000000000010d8                SPI1_IRQHandler
+                0x00000000000010d8                TAMPER_IRQHandler
+                0x00000000000010d8                CAN2_RX0_IRQHandler
+                0x00000000000010d8                TIM8_UP_IRQHandler
+                0x00000000000010d8                Ecall_M_Mode_Handler
+                0x00000000000010d8                DMA2_Channel2_IRQHandler
+                0x00000000000010d8                DMA1_Channel4_IRQHandler
+                0x00000000000010d8                TIM9_UP_IRQHandler
+                0x00000000000010d8                USART3_IRQHandler
+                0x00000000000010d8                RTC_IRQHandler
+                0x00000000000010d8                DMA1_Channel7_IRQHandler
+                0x00000000000010d8                CAN1_RX1_IRQHandler
+                0x00000000000010d8                DVP_IRQHandler
+                0x00000000000010d8                UART5_IRQHandler
+                0x00000000000010d8                TIM4_IRQHandler
+                0x00000000000010d8                DMA2_Channel1_IRQHandler
+                0x00000000000010d8                I2C1_EV_IRQHandler
+                0x00000000000010d8                DMA1_Channel6_IRQHandler
+                0x00000000000010d8                UART4_IRQHandler
+                0x00000000000010d8                DMA2_Channel4_IRQHandler
+                0x00000000000010d8                TIM3_IRQHandler
+                0x00000000000010d8                RCC_IRQHandler
+                0x00000000000010d8                TIM1_TRG_COM_IRQHandler
+                0x00000000000010d8                DMA1_Channel1_IRQHandler
+                0x00000000000010d8                DMA2_Channel7_IRQHandler
+                0x00000000000010d8                EXTI15_10_IRQHandler
+                0x00000000000010d8                TIM7_IRQHandler
+                0x00000000000010d8                CAN2_TX_IRQHandler
+                0x00000000000010d8                TIM5_IRQHandler
+                0x00000000000010d8                EXTI9_5_IRQHandler
+                0x00000000000010d8                ETH_WKUP_IRQHandler
+                0x00000000000010d8                SPI2_IRQHandler
+                0x00000000000010d8                TIM10_BRK_IRQHandler
+                0x00000000000010d8                TIM9_CC_IRQHandler
+                0x00000000000010d8                DMA2_Channel5_IRQHandler
+                0x00000000000010d8                DMA1_Channel5_IRQHandler
+                0x00000000000010d8                EXTI4_IRQHandler
+                0x00000000000010d8                USB_LP_CAN1_RX0_IRQHandler
+                0x00000000000010d8                RNG_IRQHandler
+                0x00000000000010d8                USB_HP_CAN1_TX_IRQHandler
+                0x00000000000010d8                DMA1_Channel3_IRQHandler
+                0x00000000000010d8                ETH_IRQHandler
+                0x00000000000010d8                TIM1_UP_IRQHandler
+                0x00000000000010d8                WWDG_IRQHandler
+                0x00000000000010d8                USBHSWakeup_IRQHandler
+                0x00000000000010d8                DMA2_Channel11_IRQHandler
+                0x00000000000010d8                Ecall_U_Mode_Handler
+                0x00000000000010d8                DMA2_Channel6_IRQHandler
+                0x00000000000010d8                TIM2_IRQHandler
+                0x00000000000010d8                SW_Handler
+                0x00000000000010d8                TIM1_BRK_IRQHandler
+                0x00000000000010d8                DMA2_Channel10_IRQHandler
+                0x00000000000010d8                EXTI1_IRQHandler
+                0x00000000000010d8                RTCAlarm_IRQHandler
+                0x00000000000010d8                TIM10_UP_IRQHandler
+                0x00000000000010d8                TIM9_TRG_COM_IRQHandler
+                0x00000000000010d8                UART7_IRQHandler
+                0x00000000000010d8                USART2_IRQHandler
+                0x00000000000010d8                UART6_IRQHandler
+                0x00000000000010d8                I2C2_ER_IRQHandler
+                0x00000000000010d8                DMA1_Channel2_IRQHandler
+                0x00000000000010d8                TIM8_BRK_IRQHandler
+                0x00000000000010d8                CAN1_SCE_IRQHandler
+                0x00000000000010d8                FLASH_IRQHandler
+                0x00000000000010d8                USART1_IRQHandler
+                0x00000000000010d8                SPI3_IRQHandler
+                0x00000000000010d8                I2C1_ER_IRQHandler
+                0x00000000000010d8                USBWakeUp_IRQHandler
+                0x00000000000010d8                DMA2_Channel3_IRQHandler
  .text.handle_reset
-                0x00000000000010d6       0x8a ./Startup/startup_ch32v30x_D8C.o
-                0x00000000000010d6                handle_reset
+                0x00000000000010da       0x8a ./Startup/startup_ch32v30x_D8C.o
+                0x00000000000010da                handle_reset
  .text.BKP_TamperPinCmd
-                0x0000000000001160       0x20 ./Peripheral/src/ch32v30x_bkp.o
-                0x0000000000001160                BKP_TamperPinCmd
+                0x0000000000001164       0x20 ./Peripheral/src/ch32v30x_bkp.o
+                0x0000000000001164                BKP_TamperPinCmd
  .text.BKP_WriteBackupRegister
-                0x0000000000001180       0x1c ./Peripheral/src/ch32v30x_bkp.o
-                0x0000000000001180                BKP_WriteBackupRegister
+                0x0000000000001184       0x1c ./Peripheral/src/ch32v30x_bkp.o
+                0x0000000000001184                BKP_WriteBackupRegister
  .text.BKP_ReadBackupRegister
-                0x000000000000119c       0x1c ./Peripheral/src/ch32v30x_bkp.o
-                0x000000000000119c                BKP_ReadBackupRegister
+                0x00000000000011a0       0x1c ./Peripheral/src/ch32v30x_bkp.o
+                0x00000000000011a0                BKP_ReadBackupRegister
  .text.BKP_ClearFlag
-                0x00000000000011b8       0x12 ./Peripheral/src/ch32v30x_bkp.o
-                0x00000000000011b8                BKP_ClearFlag
+                0x00000000000011bc       0x12 ./Peripheral/src/ch32v30x_bkp.o
+                0x00000000000011bc                BKP_ClearFlag
  .text.FLASH_ClearFlag
-                0x00000000000011ca        0x8 ./Peripheral/src/ch32v30x_flash.o
-                0x00000000000011ca                FLASH_ClearFlag
+                0x00000000000011ce        0x8 ./Peripheral/src/ch32v30x_flash.o
+                0x00000000000011ce                FLASH_ClearFlag
  .text.FLASH_Unlock_Fast
-                0x00000000000011d2       0x1e ./Peripheral/src/ch32v30x_flash.o
-                0x00000000000011d2                FLASH_Unlock_Fast
+                0x00000000000011d6       0x1e ./Peripheral/src/ch32v30x_flash.o
+                0x00000000000011d6                FLASH_Unlock_Fast
  .text.FLASH_Lock_Fast
-                0x00000000000011f0        0xe ./Peripheral/src/ch32v30x_flash.o
-                0x00000000000011f0                FLASH_Lock_Fast
+                0x00000000000011f4        0xe ./Peripheral/src/ch32v30x_flash.o
+                0x00000000000011f4                FLASH_Lock_Fast
  .text.FLASH_ErasePage_Fast
-                0x00000000000011fe       0x2e ./Peripheral/src/ch32v30x_flash.o
-                0x00000000000011fe                FLASH_ErasePage_Fast
+                0x0000000000001202       0x2e ./Peripheral/src/ch32v30x_flash.o
+                0x0000000000001202                FLASH_ErasePage_Fast
  .text.FLASH_ProgramPage_Fast
-                0x000000000000122c       0x64 ./Peripheral/src/ch32v30x_flash.o
-                0x000000000000122c                FLASH_ProgramPage_Fast
+                0x0000000000001230       0x64 ./Peripheral/src/ch32v30x_flash.o
+                0x0000000000001230                FLASH_ProgramPage_Fast
  .text.GPIO_DeInit
-                0x0000000000001290       0x78 ./Peripheral/src/ch32v30x_gpio.o
-                0x0000000000001290                GPIO_DeInit
+                0x0000000000001294       0x78 ./Peripheral/src/ch32v30x_gpio.o
+                0x0000000000001294                GPIO_DeInit
  .text.GPIO_Init
-                0x0000000000001308       0xc0 ./Peripheral/src/ch32v30x_gpio.o
-                0x0000000000001308                GPIO_Init
+                0x000000000000130c       0xc0 ./Peripheral/src/ch32v30x_gpio.o
+                0x000000000000130c                GPIO_Init
  .text.GPIO_ReadInputDataBit
-                0x00000000000013c8        0xa ./Peripheral/src/ch32v30x_gpio.o
-                0x00000000000013c8                GPIO_ReadInputDataBit
+                0x00000000000013cc        0xa ./Peripheral/src/ch32v30x_gpio.o
+                0x00000000000013cc                GPIO_ReadInputDataBit
  .text.NVIC_PriorityGroupConfig
-                0x00000000000013d2        0x6 ./Peripheral/src/ch32v30x_misc.o
-                0x00000000000013d2                NVIC_PriorityGroupConfig
+                0x00000000000013d6        0x6 ./Peripheral/src/ch32v30x_misc.o
+                0x00000000000013d6                NVIC_PriorityGroupConfig
  .text.NVIC_Init
-                0x00000000000013d8       0x5c ./Peripheral/src/ch32v30x_misc.o
-                0x00000000000013d8                NVIC_Init
+                0x00000000000013dc       0x5c ./Peripheral/src/ch32v30x_misc.o
+                0x00000000000013dc                NVIC_Init
  .text.PWR_BackupAccessCmd
-                0x0000000000001434       0x16 ./Peripheral/src/ch32v30x_pwr.o
-                0x0000000000001434                PWR_BackupAccessCmd
+                0x0000000000001438       0x16 ./Peripheral/src/ch32v30x_pwr.o
+                0x0000000000001438                PWR_BackupAccessCmd
  .text.RCC_AHBPeriphClockCmd
-                0x000000000000144a       0x1e ./Peripheral/src/ch32v30x_rcc.o
-                0x000000000000144a                RCC_AHBPeriphClockCmd
+                0x000000000000144e       0x1e ./Peripheral/src/ch32v30x_rcc.o
+                0x000000000000144e                RCC_AHBPeriphClockCmd
  .text.RCC_APB2PeriphClockCmd
-                0x0000000000001468       0x1e ./Peripheral/src/ch32v30x_rcc.o
-                0x0000000000001468                RCC_APB2PeriphClockCmd
+                0x000000000000146c       0x1e ./Peripheral/src/ch32v30x_rcc.o
+                0x000000000000146c                RCC_APB2PeriphClockCmd
  .text.RCC_APB1PeriphClockCmd
-                0x0000000000001486       0x1e ./Peripheral/src/ch32v30x_rcc.o
-                0x0000000000001486                RCC_APB1PeriphClockCmd
+                0x000000000000148a       0x1e ./Peripheral/src/ch32v30x_rcc.o
+                0x000000000000148a                RCC_APB1PeriphClockCmd
  .text.RCC_APB2PeriphResetCmd
-                0x00000000000014a4       0x1e ./Peripheral/src/ch32v30x_rcc.o
-                0x00000000000014a4                RCC_APB2PeriphResetCmd
+                0x00000000000014a8       0x1e ./Peripheral/src/ch32v30x_rcc.o
+                0x00000000000014a8                RCC_APB2PeriphResetCmd
  .text.RCC_USBHSConfig
-                0x00000000000014c2       0x1a ./Peripheral/src/ch32v30x_rcc.o
-                0x00000000000014c2                RCC_USBHSConfig
+                0x00000000000014c6       0x1a ./Peripheral/src/ch32v30x_rcc.o
+                0x00000000000014c6                RCC_USBHSConfig
  .text.RCC_USBHSPLLCLKConfig
-                0x00000000000014dc       0x1a ./Peripheral/src/ch32v30x_rcc.o
-                0x00000000000014dc                RCC_USBHSPLLCLKConfig
+                0x00000000000014e0       0x1a ./Peripheral/src/ch32v30x_rcc.o
+                0x00000000000014e0                RCC_USBHSPLLCLKConfig
  .text.RCC_USBHSPLLCKREFCLKConfig
-                0x00000000000014f6       0x1a ./Peripheral/src/ch32v30x_rcc.o
-                0x00000000000014f6                RCC_USBHSPLLCKREFCLKConfig
+                0x00000000000014fa       0x1a ./Peripheral/src/ch32v30x_rcc.o
+                0x00000000000014fa                RCC_USBHSPLLCKREFCLKConfig
  .text.RCC_USBHSPHYPLLALIVEcmd
-                0x0000000000001510       0x24 ./Peripheral/src/ch32v30x_rcc.o
-                0x0000000000001510                RCC_USBHSPHYPLLALIVEcmd
+                0x0000000000001514       0x24 ./Peripheral/src/ch32v30x_rcc.o
+                0x0000000000001514                RCC_USBHSPHYPLLALIVEcmd
  .text.RCC_USBCLK48MConfig
-                0x0000000000001534       0x16 ./Peripheral/src/ch32v30x_rcc.o
-                0x0000000000001534                RCC_USBCLK48MConfig
+                0x0000000000001538       0x16 ./Peripheral/src/ch32v30x_rcc.o
+                0x0000000000001538                RCC_USBCLK48MConfig
  .text.Delay_Init
-                0x000000000000154a       0x26 ./Debug/debug.o
-                0x000000000000154a                Delay_Init
+                0x000000000000154e       0x26 ./Debug/debug.o
+                0x000000000000154e                Delay_Init
  .text.Delay_Us
-                0x0000000000001570       0x36 ./Debug/debug.o
-                0x0000000000001570                Delay_Us
- .text.memcpy   0x00000000000015a6       0xb2 c:/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32imacxw/ilp32\libg_nano.a(lib_a-memcpy.o)
-                0x00000000000015a6                memcpy
+                0x0000000000001574       0x36 ./Debug/debug.o
+                0x0000000000001574                Delay_Us
+ .text.memcpy   0x00000000000015aa       0xb2 c:/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32imacxw/ilp32\libg_nano.a(lib_a-memcpy.o)
+                0x00000000000015aa                memcpy
  *(.rodata)
  *(.rodata*)
- *fill*         0x0000000000001658        0x0 
  .rodata.USBHS_IRQHandler
-                0x0000000000001658       0x30 ./User/usb/ch32v30x_usbhs_device.o
+                0x000000000000165c       0x30 ./User/usb/ch32v30x_usbhs_device.o
  .rodata._ZL10usb_config
-                0x0000000000001688       0x30 ./User/usb/usb_conf.o
+                0x000000000000168c       0x30 ./User/usb/usb_conf.o
  .rodata.MyCfgDescr_FS
-                0x00000000000016b8        0x9 ./User/usb/usb_desc.o
-                0x00000000000016b8                MyCfgDescr_FS
- *fill*         0x00000000000016c1        0x3 
+                0x00000000000016bc        0x9 ./User/usb/usb_desc.o
+                0x00000000000016bc                MyCfgDescr_FS
+ *fill*         0x00000000000016c5        0x3 
  .rodata.MyDevDescr
-                0x00000000000016c4       0x12 ./User/usb/usb_desc.o
-                0x00000000000016c4                MyDevDescr
- *fill*         0x00000000000016d6        0x2 
+                0x00000000000016c8       0x12 ./User/usb/usb_desc.o
+                0x00000000000016c8                MyDevDescr
+ *fill*         0x00000000000016da        0x2 
  .rodata.MyHIDReportDesc_HS
-                0x00000000000016d8       0x20 ./User/usb/usb_desc.o
-                0x00000000000016d8                MyHIDReportDesc_HS
+                0x00000000000016dc       0x20 ./User/usb/usb_desc.o
+                0x00000000000016dc                MyHIDReportDesc_HS
  .rodata.MyManuInfo
-                0x00000000000016f8        0xe ./User/usb/usb_desc.o
-                0x00000000000016f8                MyManuInfo
- *fill*         0x0000000000001706        0x2 
+                0x00000000000016fc        0xe ./User/usb/usb_desc.o
+                0x00000000000016fc                MyManuInfo
+ *fill*         0x000000000000170a        0x2 
  .rodata.MyProdInfo
-                0x0000000000001708       0x28 ./User/usb/usb_desc.o
-                0x0000000000001708                MyProdInfo
+                0x000000000000170c       0x28 ./User/usb/usb_desc.o
+                0x000000000000170c                MyProdInfo
  .rodata.MyQuaDesc
-                0x0000000000001730        0xa ./User/usb/usb_desc.o
-                0x0000000000001730                MyQuaDesc
- *fill*         0x000000000000173a        0x2 
+                0x0000000000001734        0xa ./User/usb/usb_desc.o
+                0x0000000000001734                MyQuaDesc
+ *fill*         0x000000000000173e        0x2 
  .rodata.MySerNumInfo
-                0x000000000000173c       0x14 ./User/usb/usb_desc.o
-                0x000000000000173c                MySerNumInfo
+                0x0000000000001740       0x14 ./User/usb/usb_desc.o
+                0x0000000000001740                MySerNumInfo
  *(.gnu.linkonce.t.*)
-                0x0000000000001750                . = ALIGN (0x4)
+                0x0000000000001754                . = ALIGN (0x4)
 
-.rela.dyn       0x0000000000001750        0x0
- .rela.init     0x0000000000001750        0x0 ./User/usb/ch32v30x_usbhs_device.o
- .rela.vector   0x0000000000001750        0x0 ./User/usb/ch32v30x_usbhs_device.o
+.rela.dyn       0x0000000000001754        0x0
+ .rela.init     0x0000000000001754        0x0 ./User/usb/ch32v30x_usbhs_device.o
+ .rela.vector   0x0000000000001754        0x0 ./User/usb/ch32v30x_usbhs_device.o
  .rela.text.handle_reset
-                0x0000000000001750        0x0 ./User/usb/ch32v30x_usbhs_device.o
+                0x0000000000001754        0x0 ./User/usb/ch32v30x_usbhs_device.o
 
-.fini           0x0000000000001750        0x0
+.fini           0x0000000000001754        0x0
  *(SORT_NONE(.fini))
-                0x0000000000001750                . = ALIGN (0x4)
+                0x0000000000001754                . = ALIGN (0x4)
                 [!provide]                        PROVIDE (_etext = .)
                 [!provide]                        PROVIDE (_eitcm = .)
 
-.preinit_array  0x0000000000001750        0x0
+.preinit_array  0x0000000000001754        0x0
                 [!provide]                        PROVIDE (__preinit_array_start = .)
  *(.preinit_array)
                 [!provide]                        PROVIDE (__preinit_array_end = .)
 
-.init_array     0x0000000000001750        0x0
+.init_array     0x0000000000001754        0x0
                 [!provide]                        PROVIDE (__init_array_start = .)
  *(SORT_BY_INIT_PRIORITY(.init_array.*) SORT_BY_INIT_PRIORITY(.ctors.*))
  *(.init_array EXCLUDE_FILE(*crtend?.o *crtend.o *crtbegin?.o *crtbegin.o) .ctors)
                 [!provide]                        PROVIDE (__init_array_end = .)
 
-.fini_array     0x0000000000001750        0x0
+.fini_array     0x0000000000001754        0x0
                 [!provide]                        PROVIDE (__fini_array_start = .)
  *(SORT_BY_INIT_PRIORITY(.fini_array.*) SORT_BY_INIT_PRIORITY(.dtors.*))
  *(.fini_array EXCLUDE_FILE(*crtend?.o *crtend.o *crtbegin?.o *crtbegin.o) .dtors)
@@ -1946,15 +1944,15 @@ END GROUP
  *(SORT_BY_NAME(.dtors.*))
  *(.dtors)
 
-.dalign         0x0000000020000000        0x0 load address 0x0000000000001750
+.dalign         0x0000000020000000        0x0 load address 0x0000000000001754
                 0x0000000020000000                . = ALIGN (0x4)
                 0x0000000020000000                PROVIDE (_data_vma = .)
 
-.dlalign        0x0000000000001750        0x0
-                0x0000000000001750                . = ALIGN (0x4)
-                0x0000000000001750                PROVIDE (_data_lma = .)
+.dlalign        0x0000000000001754        0x0
+                0x0000000000001754                . = ALIGN (0x4)
+                0x0000000000001754                PROVIDE (_data_lma = .)
 
-.data           0x0000000020000000       0x90 load address 0x0000000000001750
+.data           0x0000000020000000       0x90 load address 0x0000000000001754
  *(.gnu.linkonce.r.*)
  *(.data .data.*)
  .data.IFTest_Buf
@@ -1999,7 +1997,7 @@ END GROUP
                 0x0000000020000090                . = ALIGN (0x4)
                 0x0000000020000090                PROVIDE (_edata = .)
 
-.bss            0x0000000020000090      0x480 load address 0x00000000000017e0
+.bss            0x0000000020000090      0x480 load address 0x00000000000017e4
                 0x0000000020000090                . = ALIGN (0x4)
                 0x0000000020000090                PROVIDE (_sbss = .)
  *(.sbss*)
@@ -2095,49 +2093,49 @@ END GROUP
                 0x0000000020008000                PROVIDE (_eusrstack = .)
 OUTPUT(HID-Bootloader.elf elf32-littleriscv)
 
-.debug_info     0x0000000000000000    0x16689
+.debug_info     0x0000000000000000    0x165f2
  .debug_info    0x0000000000000000     0x21cf ./User/usb/ch32v30x_usbhs_device.o
  .debug_info    0x00000000000021cf     0x9bd0 ./User/usb/usb_conf.o
  .debug_info    0x000000000000bd9f      0x1cc ./User/usb/usb_desc.o
  .debug_info    0x000000000000bf6b      0xbc0 ./User/ch32v30x_it.o
- .debug_info    0x000000000000cb2b     0x11fb ./User/main.o
- .debug_info    0x000000000000dd26      0xbb5 ./User/system_ch32v30x.o
- .debug_info    0x000000000000e8db       0x22 ./Startup/startup_ch32v30x_D8C.o
- .debug_info    0x000000000000e8fd     0x10d3 ./Peripheral/src/ch32v30x_bkp.o
- .debug_info    0x000000000000f9d0     0x15c3 ./Peripheral/src/ch32v30x_flash.o
- .debug_info    0x0000000000010f93     0x12aa ./Peripheral/src/ch32v30x_gpio.o
- .debug_info    0x000000000001223d      0xf5b ./Peripheral/src/ch32v30x_misc.o
- .debug_info    0x0000000000013198     0x101d ./Peripheral/src/ch32v30x_pwr.o
- .debug_info    0x00000000000141b5     0x158a ./Peripheral/src/ch32v30x_rcc.o
- .debug_info    0x000000000001573f      0xf4a ./Debug/debug.o
+ .debug_info    0x000000000000cb2b     0x1164 ./User/main.o
+ .debug_info    0x000000000000dc8f      0xbb5 ./User/system_ch32v30x.o
+ .debug_info    0x000000000000e844       0x22 ./Startup/startup_ch32v30x_D8C.o
+ .debug_info    0x000000000000e866     0x10d3 ./Peripheral/src/ch32v30x_bkp.o
+ .debug_info    0x000000000000f939     0x15c3 ./Peripheral/src/ch32v30x_flash.o
+ .debug_info    0x0000000000010efc     0x12aa ./Peripheral/src/ch32v30x_gpio.o
+ .debug_info    0x00000000000121a6      0xf5b ./Peripheral/src/ch32v30x_misc.o
+ .debug_info    0x0000000000013101     0x101d ./Peripheral/src/ch32v30x_pwr.o
+ .debug_info    0x000000000001411e     0x158a ./Peripheral/src/ch32v30x_rcc.o
+ .debug_info    0x00000000000156a8      0xf4a ./Debug/debug.o
 
-.debug_abbrev   0x0000000000000000     0x2cda
+.debug_abbrev   0x0000000000000000     0x2ce9
  .debug_abbrev  0x0000000000000000      0x4fe ./User/usb/ch32v30x_usbhs_device.o
  .debug_abbrev  0x00000000000004fe      0x800 ./User/usb/usb_conf.o
  .debug_abbrev  0x0000000000000cfe       0x75 ./User/usb/usb_desc.o
  .debug_abbrev  0x0000000000000d73      0x22c ./User/ch32v30x_it.o
- .debug_abbrev  0x0000000000000f9f      0x323 ./User/main.o
- .debug_abbrev  0x00000000000012c2      0x2c0 ./User/system_ch32v30x.o
- .debug_abbrev  0x0000000000001582       0x12 ./Startup/startup_ch32v30x_D8C.o
- .debug_abbrev  0x0000000000001594      0x2cc ./Peripheral/src/ch32v30x_bkp.o
- .debug_abbrev  0x0000000000001860      0x496 ./Peripheral/src/ch32v30x_flash.o
- .debug_abbrev  0x0000000000001cf6      0x31a ./Peripheral/src/ch32v30x_gpio.o
- .debug_abbrev  0x0000000000002010      0x2da ./Peripheral/src/ch32v30x_misc.o
- .debug_abbrev  0x00000000000022ea      0x3aa ./Peripheral/src/ch32v30x_pwr.o
- .debug_abbrev  0x0000000000002694      0x351 ./Peripheral/src/ch32v30x_rcc.o
- .debug_abbrev  0x00000000000029e5      0x2f5 ./Debug/debug.o
+ .debug_abbrev  0x0000000000000f9f      0x332 ./User/main.o
+ .debug_abbrev  0x00000000000012d1      0x2c0 ./User/system_ch32v30x.o
+ .debug_abbrev  0x0000000000001591       0x12 ./Startup/startup_ch32v30x_D8C.o
+ .debug_abbrev  0x00000000000015a3      0x2cc ./Peripheral/src/ch32v30x_bkp.o
+ .debug_abbrev  0x000000000000186f      0x496 ./Peripheral/src/ch32v30x_flash.o
+ .debug_abbrev  0x0000000000001d05      0x31a ./Peripheral/src/ch32v30x_gpio.o
+ .debug_abbrev  0x000000000000201f      0x2da ./Peripheral/src/ch32v30x_misc.o
+ .debug_abbrev  0x00000000000022f9      0x3aa ./Peripheral/src/ch32v30x_pwr.o
+ .debug_abbrev  0x00000000000026a3      0x351 ./Peripheral/src/ch32v30x_rcc.o
+ .debug_abbrev  0x00000000000029f4      0x2f5 ./Debug/debug.o
 
-.debug_loc      0x0000000000000000     0x299a
+.debug_loc      0x0000000000000000     0x2a37
  .debug_loc     0x0000000000000000      0x339 ./User/usb/ch32v30x_usbhs_device.o
- .debug_loc     0x0000000000000339      0x106 ./User/main.o
- .debug_loc     0x000000000000043f      0x163 ./User/system_ch32v30x.o
- .debug_loc     0x00000000000005a2       0xd8 ./Peripheral/src/ch32v30x_bkp.o
- .debug_loc     0x000000000000067a      0xcca ./Peripheral/src/ch32v30x_flash.o
- .debug_loc     0x0000000000001344      0x72b ./Peripheral/src/ch32v30x_gpio.o
- .debug_loc     0x0000000000001a6f       0x61 ./Peripheral/src/ch32v30x_misc.o
- .debug_loc     0x0000000000001ad0      0x278 ./Peripheral/src/ch32v30x_pwr.o
- .debug_loc     0x0000000000001d48      0xadb ./Peripheral/src/ch32v30x_rcc.o
- .debug_loc     0x0000000000002823      0x177 ./Debug/debug.o
+ .debug_loc     0x0000000000000339      0x1a3 ./User/main.o
+ .debug_loc     0x00000000000004dc      0x163 ./User/system_ch32v30x.o
+ .debug_loc     0x000000000000063f       0xd8 ./Peripheral/src/ch32v30x_bkp.o
+ .debug_loc     0x0000000000000717      0xcca ./Peripheral/src/ch32v30x_flash.o
+ .debug_loc     0x00000000000013e1      0x72b ./Peripheral/src/ch32v30x_gpio.o
+ .debug_loc     0x0000000000001b0c       0x61 ./Peripheral/src/ch32v30x_misc.o
+ .debug_loc     0x0000000000001b6d      0x278 ./Peripheral/src/ch32v30x_pwr.o
+ .debug_loc     0x0000000000001de5      0xadb ./Peripheral/src/ch32v30x_rcc.o
+ .debug_loc     0x00000000000028c0      0x177 ./Debug/debug.o
 
 .debug_aranges  0x0000000000000000      0x620
  .debug_aranges
@@ -2169,37 +2167,37 @@ OUTPUT(HID-Bootloader.elf elf32-littleriscv)
  .debug_aranges
                 0x00000000000005d0       0x50 ./Debug/debug.o
 
-.debug_ranges   0x0000000000000000      0x6c0
+.debug_ranges   0x0000000000000000      0x6e0
  .debug_ranges  0x0000000000000000       0xd0 ./User/usb/ch32v30x_usbhs_device.o
  .debug_ranges  0x00000000000000d0       0x18 ./User/ch32v30x_it.o
- .debug_ranges  0x00000000000000e8       0x60 ./User/main.o
- .debug_ranges  0x0000000000000148       0x38 ./User/system_ch32v30x.o
- .debug_ranges  0x0000000000000180       0x28 ./Startup/startup_ch32v30x_D8C.o
- .debug_ranges  0x00000000000001a8       0x68 ./Peripheral/src/ch32v30x_bkp.o
- .debug_ranges  0x0000000000000210      0x110 ./Peripheral/src/ch32v30x_flash.o
- .debug_ranges  0x0000000000000320       0xa0 ./Peripheral/src/ch32v30x_gpio.o
- .debug_ranges  0x00000000000003c0       0x30 ./Peripheral/src/ch32v30x_misc.o
- .debug_ranges  0x00000000000003f0       0xf8 ./Peripheral/src/ch32v30x_pwr.o
- .debug_ranges  0x00000000000004e8      0x198 ./Peripheral/src/ch32v30x_rcc.o
- .debug_ranges  0x0000000000000680       0x40 ./Debug/debug.o
+ .debug_ranges  0x00000000000000e8       0x80 ./User/main.o
+ .debug_ranges  0x0000000000000168       0x38 ./User/system_ch32v30x.o
+ .debug_ranges  0x00000000000001a0       0x28 ./Startup/startup_ch32v30x_D8C.o
+ .debug_ranges  0x00000000000001c8       0x68 ./Peripheral/src/ch32v30x_bkp.o
+ .debug_ranges  0x0000000000000230      0x110 ./Peripheral/src/ch32v30x_flash.o
+ .debug_ranges  0x0000000000000340       0xa0 ./Peripheral/src/ch32v30x_gpio.o
+ .debug_ranges  0x00000000000003e0       0x30 ./Peripheral/src/ch32v30x_misc.o
+ .debug_ranges  0x0000000000000410       0xf8 ./Peripheral/src/ch32v30x_pwr.o
+ .debug_ranges  0x0000000000000508      0x198 ./Peripheral/src/ch32v30x_rcc.o
+ .debug_ranges  0x00000000000006a0       0x40 ./Debug/debug.o
 
-.debug_line     0x0000000000000000     0xac0e
+.debug_line     0x0000000000000000     0xace4
  .debug_line    0x0000000000000000     0x1d77 ./User/usb/ch32v30x_usbhs_device.o
  .debug_line    0x0000000000001d77      0x755 ./User/usb/usb_conf.o
  .debug_line    0x00000000000024cc      0x178 ./User/usb/usb_desc.o
  .debug_line    0x0000000000002644      0x31c ./User/ch32v30x_it.o
- .debug_line    0x0000000000002960      0x86c ./User/main.o
- .debug_line    0x00000000000031cc      0x95e ./User/system_ch32v30x.o
- .debug_line    0x0000000000003b2a      0x122 ./Startup/startup_ch32v30x_D8C.o
- .debug_line    0x0000000000003c4c      0x6da ./Peripheral/src/ch32v30x_bkp.o
- .debug_line    0x0000000000004326     0x2503 ./Peripheral/src/ch32v30x_flash.o
- .debug_line    0x0000000000006829     0x12c7 ./Peripheral/src/ch32v30x_gpio.o
- .debug_line    0x0000000000007af0      0x445 ./Peripheral/src/ch32v30x_misc.o
- .debug_line    0x0000000000007f35      0xb31 ./Peripheral/src/ch32v30x_pwr.o
- .debug_line    0x0000000000008a66     0x19f9 ./Peripheral/src/ch32v30x_rcc.o
- .debug_line    0x000000000000a45f      0x7af ./Debug/debug.o
+ .debug_line    0x0000000000002960      0x942 ./User/main.o
+ .debug_line    0x00000000000032a2      0x95e ./User/system_ch32v30x.o
+ .debug_line    0x0000000000003c00      0x122 ./Startup/startup_ch32v30x_D8C.o
+ .debug_line    0x0000000000003d22      0x6da ./Peripheral/src/ch32v30x_bkp.o
+ .debug_line    0x00000000000043fc     0x2503 ./Peripheral/src/ch32v30x_flash.o
+ .debug_line    0x00000000000068ff     0x12c7 ./Peripheral/src/ch32v30x_gpio.o
+ .debug_line    0x0000000000007bc6      0x445 ./Peripheral/src/ch32v30x_misc.o
+ .debug_line    0x000000000000800b      0xb31 ./Peripheral/src/ch32v30x_pwr.o
+ .debug_line    0x0000000000008b3c     0x19f9 ./Peripheral/src/ch32v30x_rcc.o
+ .debug_line    0x000000000000a535      0x7af ./Debug/debug.o
 
-.debug_str      0x0000000000000000     0xf3ff
+.debug_str      0x0000000000000000     0xf409
  .debug_str     0x0000000000000000     0x1820 ./User/usb/ch32v30x_usbhs_device.o
                                        0x18cf (size before relaxing)
  .debug_str     0x0000000000001820     0xc585 ./User/usb/usb_conf.o
@@ -2208,25 +2206,25 @@ OUTPUT(HID-Bootloader.elf elf32-littleriscv)
                                         0x246 (size before relaxing)
  .debug_str     0x000000000000ddbc       0x45 ./User/ch32v30x_it.o
                                         0x689 (size before relaxing)
- .debug_str     0x000000000000de01      0x316 ./User/main.o
-                                        0xaab (size before relaxing)
- .debug_str     0x000000000000e117      0x109 ./User/system_ch32v30x.o
+ .debug_str     0x000000000000de01      0x320 ./User/main.o
+                                        0xaac (size before relaxing)
+ .debug_str     0x000000000000e121      0x109 ./User/system_ch32v30x.o
                                         0x6ee (size before relaxing)
- .debug_str     0x000000000000e220       0x2e ./Startup/startup_ch32v30x_D8C.o
+ .debug_str     0x000000000000e22a       0x2e ./Startup/startup_ch32v30x_D8C.o
                                          0x5e (size before relaxing)
- .debug_str     0x000000000000e24e      0x270 ./Peripheral/src/ch32v30x_bkp.o
+ .debug_str     0x000000000000e258      0x270 ./Peripheral/src/ch32v30x_bkp.o
                                         0xaa9 (size before relaxing)
- .debug_str     0x000000000000e4be      0x473 ./Peripheral/src/ch32v30x_flash.o
+ .debug_str     0x000000000000e4c8      0x473 ./Peripheral/src/ch32v30x_flash.o
                                         0xb02 (size before relaxing)
- .debug_str     0x000000000000e931      0x24e ./Peripheral/src/ch32v30x_gpio.o
+ .debug_str     0x000000000000e93b      0x24e ./Peripheral/src/ch32v30x_gpio.o
                                         0x9b4 (size before relaxing)
- .debug_str     0x000000000000eb7f       0x82 ./Peripheral/src/ch32v30x_misc.o
+ .debug_str     0x000000000000eb89       0x82 ./Peripheral/src/ch32v30x_misc.o
                                         0xcbd (size before relaxing)
- .debug_str     0x000000000000ec01      0x19b ./Peripheral/src/ch32v30x_pwr.o
+ .debug_str     0x000000000000ec0b      0x19b ./Peripheral/src/ch32v30x_pwr.o
                                         0x85b (size before relaxing)
- .debug_str     0x000000000000ed9c      0x4fe ./Peripheral/src/ch32v30x_rcc.o
+ .debug_str     0x000000000000eda6      0x4fe ./Peripheral/src/ch32v30x_rcc.o
                                         0xce3 (size before relaxing)
- .debug_str     0x000000000000f29a      0x165 ./Debug/debug.o
+ .debug_str     0x000000000000f2a4      0x165 ./Debug/debug.o
                                         0x925 (size before relaxing)
 
 .comment        0x0000000000000000       0x33
@@ -2245,16 +2243,16 @@ OUTPUT(HID-Bootloader.elf elf32-littleriscv)
  .comment       0x0000000000000033       0x34 ./Peripheral/src/ch32v30x_rcc.o
  .comment       0x0000000000000033       0x34 ./Debug/debug.o
 
-.debug_frame    0x0000000000000000      0xd04
+.debug_frame    0x0000000000000000      0xd14
  .debug_frame   0x0000000000000000      0x140 ./User/usb/ch32v30x_usbhs_device.o
  .debug_frame   0x0000000000000140       0x30 ./User/ch32v30x_it.o
- .debug_frame   0x0000000000000170       0x40 ./User/main.o
- .debug_frame   0x00000000000001b0       0x3c ./User/system_ch32v30x.o
- .debug_frame   0x00000000000001ec       0xec ./Peripheral/src/ch32v30x_bkp.o
- .debug_frame   0x00000000000002d8      0x370 ./Peripheral/src/ch32v30x_flash.o
- .debug_frame   0x0000000000000648      0x174 ./Peripheral/src/ch32v30x_gpio.o
- .debug_frame   0x00000000000007bc       0x30 ./Peripheral/src/ch32v30x_misc.o
- .debug_frame   0x00000000000007ec       0xfc ./Peripheral/src/ch32v30x_pwr.o
- .debug_frame   0x00000000000008e8      0x344 ./Peripheral/src/ch32v30x_rcc.o
- .debug_frame   0x0000000000000c2c       0xb8 ./Debug/debug.o
- .debug_frame   0x0000000000000ce4       0x20 c:/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32imacxw/ilp32\libg_nano.a(lib_a-memcpy.o)
+ .debug_frame   0x0000000000000170       0x50 ./User/main.o
+ .debug_frame   0x00000000000001c0       0x3c ./User/system_ch32v30x.o
+ .debug_frame   0x00000000000001fc       0xec ./Peripheral/src/ch32v30x_bkp.o
+ .debug_frame   0x00000000000002e8      0x370 ./Peripheral/src/ch32v30x_flash.o
+ .debug_frame   0x0000000000000658      0x174 ./Peripheral/src/ch32v30x_gpio.o
+ .debug_frame   0x00000000000007cc       0x30 ./Peripheral/src/ch32v30x_misc.o
+ .debug_frame   0x00000000000007fc       0xfc ./Peripheral/src/ch32v30x_pwr.o
+ .debug_frame   0x00000000000008f8      0x344 ./Peripheral/src/ch32v30x_rcc.o
+ .debug_frame   0x0000000000000c3c       0xb8 ./Debug/debug.o
+ .debug_frame   0x0000000000000cf4       0x20 c:/mounriver/mounriver_studio2/resources/app/resources/win32/components/wch/toolchain/risc-v embedded gcc/bin/../lib/gcc/riscv-none-embed/8.2.0/../../../../riscv-none-embed/lib/rv32imacxw/ilp32\libg_nano.a(lib_a-memcpy.o)

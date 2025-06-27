@@ -10,10 +10,9 @@ uint32_t flash_program_address = APP_START;
 
 #define PROGRAM_READY 0x1
 #define VERIFY_READY  0x2
-#define VERIFY_OK     0x3
-#define VERIFY_BAD    0x4
-#define PROGRAM_END   0x5
-#define BOOTLOAD_PAGE_WRITED 0x6
+#define PROGRAMING    0x3
+#define VERIFYING     0x4
+#define FINISHED      0x5
 
 static uint32_t GetLastAppState(void) {
     return *(uint32_t*)BOOTLOADER_PAGE;
@@ -45,17 +44,15 @@ int main(void)
 
     uint16_t magic1 = BKP_ReadBackupRegister(BKP_DR1);
     uint16_t magic2 = BKP_ReadBackupRegister(BKP_DR2);
+    uint8_t state = PROGRAM_READY;
     if ((magic1 == 0x1234 && magic2 == 0x5678) || GetLastAppState() == 1 || ReadFakeBootPin() == 0) {
         USBHS_RCC_Init();
         USBHS_Device_Init(ENABLE);
 
         while (USBHS_DevEnumStatus == 0) {}
 
-        HID_ReportOK(PROGRAM_READY);
-        if (GetLastAppState() == 1) {
-            HID_ReportOK(VERIFY_BAD);
-        }
-
+_download:
+        state = PROGRAM_READY;
         FLASH_Unlock_Fast();
         FLASH_ClearFlag(FLASH_FLAG_BSY | FLASH_FLAG_EOP | FLASH_FLAG_WRPRTERR);
 
@@ -63,7 +60,6 @@ int main(void)
         flash_program_address = APP_START;
         while (1) {
             if (HID_HasData()) {
-                uint32_t len = HID_GetDataLen() - 4;
                 uint32_t* ptr = (uint32_t*)HID_GetDataPtr();
                 if (ptr[0] == 0) {
                     // erase
@@ -74,23 +70,28 @@ int main(void)
                 }
                 else if (ptr[0] == 0xffffffff) {
                     // end
-                    HID_ReportOK(PROGRAM_END);
                     break;
                 }
-                HID_ReportOK(len & 0xff);
-                HID_ReportOK(len >> 8);
+                else if (ptr[0] == 0xff000000) {
+                    // get current state
+                    HID_ReportOK(state);
+                }
+                else if (ptr[0] == 0x00ff0000) {
+                    // get last app state
+                    HID_ReportOK(GetLastAppState());
+                }
                 HID_NextData();
+                state = PROGRAMING;
             }
         }
 
         // 检测
-        HID_ReportOK(VERIFY_READY);
+        state = VERIFY_READY;
         HID_NextData();
         flash_program_address = APP_START;
         uint32_t bad_flash = 0;
         while (1) {
             if (HID_HasData()) {
-                uint32_t len = HID_GetDataLen() - 4;
                 uint32_t* ptr = (uint32_t*)HID_GetDataPtr();
                 if (ptr[0] == 0) {
                     for (uint32_t i = 0; i < 64; ++i) {
@@ -102,12 +103,18 @@ int main(void)
                 }
                 else if (ptr[0] == 0xffffffff) {
                     // end
-                    HID_ReportOK(PROGRAM_END);
                     break;
                 }
-                HID_ReportOK(len & 0xff);
-                HID_ReportOK(len >> 8);
+                else if (ptr[0] == 0xff000000) {
+                    // get current state
+                    HID_ReportOK(state);
+                }
+                else if (ptr[0] == 0x00ff0000) {
+                    // get last app state
+                    HID_ReportOK(GetLastAppState());
+                }
                 HID_NextData();
+                state = VERIFYING;
             }
         }
 
@@ -118,19 +125,35 @@ int main(void)
                 bad_flash
             };
             FLASH_ProgramPage_Fast(BOOTLOADER_PAGE, wtf);
-            HID_ReportOK(BOOTLOAD_PAGE_WRITED);
         }
         FLASH_Lock_Fast();
 
         BKP_WriteBackupRegister(BKP_DR1, 0);
         BKP_WriteBackupRegister(BKP_DR2, 0);
 
-        if (bad_flash == 1) {
-            HID_ReportOK(VERIFY_BAD);
-            while (1) {}
+        HID_NextData();
+        state = FINISHED;
+        while (1) {
+            if (HID_HasData()) {
+                uint32_t* ptr = (uint32_t*)HID_GetDataPtr();
+                if (ptr[0] == 0xffffffff) {
+                    // end
+                    break;
+                }
+                else if (ptr[0] == 0xff000000) {
+                    // get current state
+                    HID_ReportOK(state);
+                }
+                else if (ptr[0] == 0x00ff0000) {
+                    // get last app state
+                    HID_ReportOK(bad_flash);
+                }
+                HID_NextData();
+            }
         }
-        else {
-            HID_ReportOK(VERIFY_OK);
+
+        if (bad_flash == 1) {
+            goto _download;
         }
     }
 

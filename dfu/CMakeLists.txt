@@ -4,14 +4,42 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS TRUE)
 
 project(dfu)
 
+if (MSVC)
+    add_compile_options(/utf-8)
+endif()
+
 # download JUCE
 include(FetchContent)
+
+# download hex2bin
+FetchContent_Declare(
+    HEX2BIN
+    GIT_REPOSITORY https://github.com/algodesigner/hex2bin.git
+    SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/hex2bin
+)
+# FetchContent_GetProperties(HEX2BIN)
+# if(NOT HEX2BIN_POPULATED)
+#     FetchContent_Populate(HEX2BIN)
+# endif()
+add_library(HEX2BIN
+    "hex2bin/binary.c"
+    # "hex2bin/common.c"
+    # "hex2bin/hex2bin.c"
+    "hex2bin/libcrc.c"
+    # "hex2bin/mot2bin.c"
+)
+target_include_directories(HEX2BIN PRIVATE hex2bin)
+
 FetchContent_Declare(
     JUCE
     GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
     SHA256 60fa1d4554fc58e166e8e26c655b0a5cb3a5798b6e6daaea2f957a741d5ba422
     SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/juce
 )
+# FetchContent_GetProperties(JUCE)
+# if(NOT JUCE_POPULATED)
+#     FetchContent_Populate(JUCE)
+# endif()
 add_subdirectory(juce)
 
 juce_add_gui_app(DFU
@@ -50,6 +78,7 @@ target_link_libraries(DFU
         # GuiAppData            # If we'd created a binary data target, we'd link to it here
         juce::juce_gui_extra
         libusb-1.0
+        HEX2BIN
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
