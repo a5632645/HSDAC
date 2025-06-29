@@ -87,6 +87,11 @@ int main(void) {
                 USBHS_Device_Init(DISABLE);
                 NVIC_SystemReset();
             }
+            else if (e->type == 2) {
+                // latency setting
+                uint32_t pos = e->reg << 8 | e->val;
+                Codec_SetLatencyPos(pos);
+            }
         }
         HID_Queue_Finish(&g_hid_queue, len);
     }

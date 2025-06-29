@@ -16,7 +16,6 @@ void            Codec_BlockFilled(void);
 void            Codec_PollWrite(uint8_t reg, uint8_t val);
 uint8_t         Codec_PollRead(uint8_t reg);
 
-// clock sync
 void     Codec_Start(void);
 void     Codec_Stop(void);
 uint32_t Codec_GetDMASize(void);
@@ -35,5 +34,6 @@ enum eCodecChannel {
     eCodecChannel_Right,
 };
 
-void     Codec_CheckVolumeEvent(void);
-void     Codec_SetVolume(enum eCodecChannel channel, uint8_t vol);
+void Codec_CheckVolumeEvent(void);
+void Codec_SetVolume(enum eCodecChannel channel, uint8_t vol);
+void Codec_SetLatencyPos(uint32_t pos);

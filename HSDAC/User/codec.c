@@ -37,6 +37,7 @@ static volatile uint32_t dma_frequency_meausure_counter_ = 0;
 static volatile float raw_mesured_dma_sample_rate_ = 0;
 uint32_t mesured_dma_sample_rate_ = 0;
 uint32_t mesured_usb_sample_rate_ = 0;
+static uint32_t lantency_pos = UAC_BUFFER_LEN / 2;
 
 volatile uint32_t max_uac_len_ever = 0;
 volatile uint32_t min_uac_len_ever = 0xffffffff;
@@ -232,7 +233,6 @@ uint8_t Codec_PollRead(uint8_t reg) {
     return val;
 }
 
-// ---------- clock sync ----------
 void Codec_Start (void) {
     uac_buf_wpos_ = UAC_WPOS_INIT;
     uac_buf_rpos = 0;
@@ -368,7 +368,7 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
         // 10ms
         feedback_report_counter_ = frame;
         int32_t uac_len = Codec_GetUACBufferLen();
-        int32_t diff = (uac_len - UAC_BUFFER_LEN / 2);
+        int32_t diff = (uac_len - lantency_pos);
         if (diff > -10 && diff < 0) diff = -10;
         if (diff > 0 && diff < 10) diff = 10;
         float fb = raw_mesured_dma_sample_rate_ - diff * timeing * 5;
@@ -399,4 +399,8 @@ void Codec_SetVolume(enum eCodecChannel channel, uint8_t vol) {
         volume_event_ |= 2;
         vol_[1] = vol;
     }
+}
+
+void Codec_SetLatencyPos(uint32_t pos) {
+    lantency_pos = pos;
 }

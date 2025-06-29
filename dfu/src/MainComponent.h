@@ -1,3 +1,7 @@
+/*
+ * TODO: fix memory leak
+*/
+
 #pragma once
 
 // CMake builds don't use an AppConfig.h, so it's safe to include juce module headers
@@ -10,6 +14,7 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include <libusb.h>
 #include <memory>
+#include "uac_widget.hpp"
 
 enum class eMyDevice {
     None,
@@ -55,6 +60,6 @@ private:
     juce::TextButton firmware_path_choose_;
     std::unique_ptr<juce::FileChooser> firmware_chooser_;
 
-    juce::TextButton test_button_;
+    UACWidget uac_;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

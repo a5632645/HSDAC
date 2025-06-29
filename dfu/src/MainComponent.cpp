@@ -73,8 +73,7 @@ MainComponent::MainComponent() {
     };
     addAndMakeVisible(firmware_path_choose_);
 
-    test_button_.setButtonText("test");
-    addAndMakeVisible(test_button_);
+    addAndMakeVisible(uac_);
 
     setSize (600, 400);
 
@@ -83,9 +82,8 @@ MainComponent::MainComponent() {
 }
 
 MainComponent::~MainComponent() {
-    if (usb_device_handle_ != nullptr) {
-        libusb_close(usb_device_handle_);
-    }
+    uac_.OnUACDevoceDisconnect();
+    libusb_close(usb_device_handle_);
     libusb_exit(usb_context_);
 }
 
@@ -104,10 +102,7 @@ void MainComponent::resized() {
         firmware_path_choose_.setBounds(top.removeFromRight(100));
         firmware_path_.setBounds(top);
     }
-    {
-        auto top = b.removeFromTop(30);
-        test_button_.setBounds(top.removeFromLeft(100));
-    }
+    uac_.setBounds(b);
 }
 
 void MainComponent::ShowError(const juce::String& error, bool exit) {
@@ -257,6 +252,7 @@ void MainComponent::OnUsbDeviceConnect(eMyDevice device) {
     }
     else if (device == eMyDevice::UAC) {
         device_state_.setText("UAC", juce::dontSendNotification);
+        uac_.OnUACDeviceConnect(usb_device_handle_);
     }
 }
 
@@ -265,7 +261,7 @@ void MainComponent::OnUsbDeviceDisconnect(eMyDevice device) {
 
     }
     else if (device == eMyDevice::UAC) {
-
+        uac_.OnUACDevoceDisconnect();
     }
     device_state_.setText("Disconnect", juce::dontSendNotification);
 }
@@ -281,11 +277,20 @@ void MainComponent::ResetToBootloader() {
     // reseted
     libusb_close(usb_device_handle_);
     usb_device_handle_ = nullptr;
-    std::this_thread::sleep_for(std::chrono::seconds(5));
 
     // reconnect
     current_device_ = eMyDevice::None;
-    timerCallback();
+    auto begin = std::chrono::system_clock::now();
+    constexpr auto timeout = std::chrono::seconds(10);
+    while (current_device_ != eMyDevice::BOOT) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        timerCallback();
+        auto now = std::chrono::system_clock::now();
+        if (now - begin > timeout) {
+            DBG("[BOOT] timeout to connect to bootloader");
+            break;
+        }
+    }
 }
 
 void MainComponent::SendEndPackToBootloader() {
@@ -367,25 +372,23 @@ MainComponent::StateReq MainComponent::GetLastAppState() {
 bool MainComponent::IsDeviceActive(eMyDevice device) {
     libusb_device **list;
     ssize_t cnt;
-    cnt = libusb_get_device_list(usb_context_, &list);
-    if (cnt < 0) {
-        return false;
-    }
-
-    int target_vid = kVendorID;
-    int target_pid = device == eMyDevice::UAC ? kUACProductID : kBootProductID;
-
     bool found = false;
-    for (ssize_t i = 0; i < cnt; i++) {
-        struct libusb_device_descriptor desc;
-        int r = libusb_get_device_descriptor(list[i], &desc);
-        if (r == 0 && desc.idVendor == target_vid && desc.idProduct == target_pid) {
-            found = true;
-            break;
+
+    cnt = libusb_get_device_list(usb_context_, &list);
+    if (cnt >= 0) {
+        int target_vid = kVendorID;
+        int target_pid = device == eMyDevice::UAC ? kUACProductID : kBootProductID;
+
+        for (ssize_t i = 0; i < cnt; i++) {
+            struct libusb_device_descriptor desc;
+            int r = libusb_get_device_descriptor(list[i], &desc);
+            if (r == 0 && desc.idVendor == target_vid && desc.idProduct == target_pid) {
+                found = true;
+                break;
+            }
         }
     }
-
-    libusb_free_device_list(list, 1);
+    libusb_free_device_list(list, 1);   
 
     return found; // 1 表示已连接，0 表示未连接
 }
