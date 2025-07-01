@@ -17,11 +17,9 @@
 static StereoSample_T i2s_dma_buffer_[I2S_DMA_BUFFER_SIZE] = {0};
 static volatile int32_t last_i2s_dma_wpos_ = 0;
 static volatile bool transfer_error_ = false;
-#define UAC_BUFFER_LEN 2048
-#define UAC_BUFFER_LEN_MASK 2047
+#define UAC_BUFFER_LEN 512
+#define UAC_BUFFER_LEN_MASK 511
 #define UAC_WPOS_INIT                 (UAC_BUFFER_LEN / 2)
-#define UAC_BUFFER_LEN_UP_THRESHOLD   (UAC_BUFFER_LEN * 600 / 1000)
-#define UAC_BUFFER_LEN_DOWN_THRESHOLD (UAC_BUFFER_LEN * 400 / 1000)
 static StereoSample_T uac_buffer_[UAC_BUFFER_LEN] = {0};
 static volatile uint32_t uac_buf_wpos_ = UAC_WPOS_INIT;
 static volatile uint32_t uac_buf_rpos = 0;
@@ -30,7 +28,7 @@ static volatile uint32_t num_usb = 0;
 static volatile uint32_t num_dma = 0;
 static volatile uint32_t num_dma_cplt_tx = 0;
 static volatile uint32_t sample_rate_ = 48000;
-#define FEEDBACK_REPORT_PERIOD 10
+#define FEEDBACK_REPORT_PERIOD 2
 static volatile uint32_t feedback_report_counter_ = 0;
 #define DMA_FREQUENCY_MEAURE_PERIOD 8
 static volatile uint32_t dma_frequency_meausure_counter_ = 0;
@@ -352,7 +350,7 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
 
     uint16_t frame = USBHSD->FRAME_NO & 0x7ff;
     if (frame - dma_frequency_meausure_counter_ >= DMA_FREQUENCY_MEAURE_PERIOD) {
-        // 10ms
+        // 8ms
         dma_frequency_meausure_counter_ = frame;
         uint32_t dma_bck = Codec_GetDMALen();
         float fs = dma_bck * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD)) / 4;
@@ -369,9 +367,12 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
         feedback_report_counter_ = frame;
         int32_t uac_len = Codec_GetUACBufferLen();
         int32_t diff = (uac_len - lantency_pos);
-        if (diff > -10 && diff < 0) diff = -10;
-        if (diff > 0 && diff < 10) diff = 10;
-        float fb = raw_mesured_dma_sample_rate_ - diff * timeing * 5;
+        if (diff > -5 && diff < 0) diff = -5;
+        if (diff > 0 && diff < 5) diff = 5;
+        float fb = raw_mesured_dma_sample_rate_ - diff * timeing;
+        // limit to +-1khz
+        if (fb - sample_rate_ > 1000.0f) fb = sample_rate_ + 1000.0f;
+        else if (fb - sample_rate_ < -1000.0f) fb = sample_rate_ - 1000.0f;
         report_fs_ = report_fs_ * 0.99f + fb * 0.01f;
         USBUAC_WriteFeedback(report_fs_);
     }

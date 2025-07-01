@@ -46,6 +46,12 @@ MainComponent::MainComponent() {
     update_button_.setButtonText(juce::String::fromUTF8("上传固件"));
     addAndMakeVisible(update_button_);
     update_button_.onClick = [this] {
+        auto text = firmware_path_.getText();
+        if (!text.endsWith(".bin")) {
+            ShowError("not a valid firmware path", false);
+            return;
+        }
+
         TimerGuide _{ *this };
         if (current_device_ == eMyDevice::UAC) {
             ResetToBootloader();
@@ -65,7 +71,7 @@ MainComponent::MainComponent() {
     firmware_path_choose_.setButtonText("...");
     firmware_path_choose_.onClick = [this] {
         firmware_chooser_ = std::make_unique<juce::FileChooser>(
-            "Firmware", juce::File{}, "*.hex;*.bin"
+            "Firmware", juce::File{}, "*.bin"
         );
         firmware_chooser_->launchAsync(0, [this](const juce::FileChooser& fc) {
             this->firmware_path_.setText(fc.getResult().getFullPathName(), juce::dontSendNotification);

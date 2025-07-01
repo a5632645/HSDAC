@@ -42,6 +42,7 @@ private:
 
     libusb_device_handle* uac_device_handle_{};
     std::unordered_set<Request, Requesthash> pending_request_;
+    std::unordered_set<Request, Requesthash> temp_;
 
     juce::Label latency_label_;
     juce::Slider latency_;
