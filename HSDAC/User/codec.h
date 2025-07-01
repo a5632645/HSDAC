@@ -18,12 +18,8 @@ uint8_t         Codec_PollRead(uint8_t reg);
 
 void     Codec_Start(void);
 void     Codec_Stop(void);
-uint32_t Codec_GetDMASize(void);
-uint32_t Codec_GetDMAHalfSize(void);
-bool     Codec_IsDMAStart(void);
 void     Codec_WriteUACBuffer(const uint8_t* ptr, uint32_t len);
 uint32_t Codec_GetUACBufferLen(void);
-void     Codec_CheckBuffer(void);
 
 uint32_t Codec_GetDMALen(void);
 void     Codec_SetSampleRate(uint32_t sample_rate);

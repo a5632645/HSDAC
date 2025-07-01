@@ -53,7 +53,7 @@ int main(void) {
 
         if ((ct - t2) > 10) {
             t2 = ct;
-            if (min_uac_len_ever < 2048)
+            if (min_uac_len_ever < 256)
                 ++min_uac_len_ever;
             if (max_uac_len_ever > 0)
                 --max_uac_len_ever;

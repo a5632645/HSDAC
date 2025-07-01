@@ -9,17 +9,20 @@
 #include <math.h>
 #include <string.h>
 #include "usb/ch32v30x_usbhs_device.h"
-#include "ch32v30x_usb.h"
 
-#define I2S_DMA_BLOCK_SIZE 256
-#define I2S_DMA_BUFFER_SIZE (I2S_DMA_BLOCK_SIZE * 2)
-#define I2S_DMA_BUFFER_SIZE_MASK (I2S_DMA_BLOCK_SIZE * 2 - 1)
+#define I2S_DMA_BUFFER_SIZE      256
+#define I2S_DMA_BUFFER_SIZE_MASK (I2S_DMA_BUFFER_SIZE - 1)
+
+#define UAC_BUFFER_LEN      128
+#define UAC_BUFFER_LEN_MASK (UAC_BUFFER_LEN - 1)
+#define UAC_WPOS_INIT       (UAC_BUFFER_LEN / 2)
+
+#define FEEDBACK_REPORT_PERIOD 5
+#define DMA_FREQUENCY_MEAURE_PERIOD 10
+
 static StereoSample_T i2s_dma_buffer_[I2S_DMA_BUFFER_SIZE] = {0};
 static volatile int32_t last_i2s_dma_wpos_ = 0;
-static volatile bool transfer_error_ = false;
-#define UAC_BUFFER_LEN 512
-#define UAC_BUFFER_LEN_MASK 511
-#define UAC_WPOS_INIT                 (UAC_BUFFER_LEN / 2)
+static bool transfer_error_ = false;
 static StereoSample_T uac_buffer_[UAC_BUFFER_LEN] = {0};
 static volatile uint32_t uac_buf_wpos_ = UAC_WPOS_INIT;
 static volatile uint32_t uac_buf_rpos = 0;
@@ -27,19 +30,16 @@ static volatile uint32_t uac_buf_rpos = 0;
 static volatile uint32_t num_usb = 0;
 static volatile uint32_t num_dma = 0;
 static volatile uint32_t num_dma_cplt_tx = 0;
-static volatile uint32_t sample_rate_ = 48000;
-#define FEEDBACK_REPORT_PERIOD 2
-static volatile uint32_t feedback_report_counter_ = 0;
-#define DMA_FREQUENCY_MEAURE_PERIOD 8
-static volatile uint32_t dma_frequency_meausure_counter_ = 0;
-static volatile float raw_mesured_dma_sample_rate_ = 0;
+static uint32_t sample_rate_ = 48000;
+static uint32_t feedback_report_counter_ = 0;
+static uint32_t dma_frequency_meausure_counter_ = 0;
+static float raw_mesured_dma_sample_rate_ = 0;
 uint32_t mesured_dma_sample_rate_ = 0;
 uint32_t mesured_usb_sample_rate_ = 0;
 static uint32_t lantency_pos = UAC_BUFFER_LEN / 2;
 
 volatile uint32_t max_uac_len_ever = 0;
 volatile uint32_t min_uac_len_ever = 0xffffffff;
-#define MIN(a, b) ((a) > (b) ? (b) : (a))
 
 static void DMA_Tx_Init(DMA_Channel_TypeDef* DMA_CHx, u32 ppadr, u32 memadr, u16 bufsize) {
     RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);
@@ -68,10 +68,7 @@ static void DMA_Tx_Init(DMA_Channel_TypeDef* DMA_CHx, u32 ppadr, u32 memadr, u16
     NVIC_Init(&dma_nvic);
 
     DMA_ClearITPendingBit(DMA1_IT_TC5);
-    // DMA_ClearITPendingBit(DMA1_IT_HT5);
     DMA_ClearITPendingBit(DMA1_IT_TE5);
-
-    // DMA_ITConfig(DMA1_Channel5, DMA_IT_HT | DMA_IT_TC | DMA_IT_TE, ENABLE);
     DMA_ITConfig(DMA1_Channel5, DMA_IT_TC | DMA_IT_TE, ENABLE);
 }
 
@@ -169,14 +166,6 @@ void Codec_Init(void) {
     init.GPIO_Pin = GPIO_Pin_1;
     GPIO_Init(GPIOA, &init);
 
-    for (uint32_t i = 0; i < I2S_DMA_BUFFER_SIZE; ++i) {
-        float p = (float)i * M_PI * 2 / (float)(I2S_DMA_BUFFER_SIZE);
-        float s = sinf(p);
-        float cs = cosf(p);
-        i2s_dma_buffer_[i].left = Swap16(s * (1 << 24));
-        i2s_dma_buffer_[i].right = Swap16(cs * (1 << 24));
-    }
-
     DMA_Cmd(DMA1_Channel5, ENABLE);
 }
 
@@ -190,10 +179,6 @@ void Codec_DeInit(void) {
 
 bool Codec_IsTransferError(void) {
     return transfer_error_;
-}
-
-uint32_t Codec_GetBlockSize(void) {
-    return I2S_DMA_BLOCK_SIZE;
 }
 
 void Codec_PollWrite(uint8_t reg, uint8_t val) {
@@ -234,6 +219,7 @@ uint8_t Codec_PollRead(uint8_t reg) {
 void Codec_Start (void) {
     uac_buf_wpos_ = UAC_WPOS_INIT;
     uac_buf_rpos = 0;
+    memset(uac_buffer_, 0, sizeof(uac_buffer_));
 }
 
 void Codec_Stop(void) {
@@ -241,19 +227,8 @@ void Codec_Stop(void) {
     memset(i2s_dma_buffer_, 0, sizeof(i2s_dma_buffer_));
 }
 
-uint32_t Codec_GetDMASize (void) {
-    return I2S_DMA_BUFFER_SIZE;
-}
-
-uint32_t Codec_GetDMAHalfSize (void) {
-    return I2S_DMA_BLOCK_SIZE;
-}
-
-bool Codec_IsDMAStart (void) {
-    return true;
-}
-
 void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
+    // copy buffer to dma
     int32_t curr_dma_pos = (I2S_DMA_BUFFER_SIZE * 4 - DMA_GetCurrDataCounter(DMA1_Channel5)) / 4;
     uint32_t dma_can_write = (curr_dma_pos - last_i2s_dma_wpos_) & I2S_DMA_BUFFER_SIZE_MASK;
 
@@ -262,12 +237,12 @@ void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
     uac_len -= uac_to_dma;
     dma_can_write -= uac_to_dma;
     while (uac_to_dma--) {
-        StereoSample_T sample = uac_buffer_[uac_buf_rpos];
+        i2s_dma_buffer_[last_i2s_dma_wpos_] = uac_buffer_[uac_buf_rpos];
         uac_buf_rpos = (uac_buf_rpos + 1) & UAC_BUFFER_LEN_MASK;
-        i2s_dma_buffer_[last_i2s_dma_wpos_] = sample;
         last_i2s_dma_wpos_ = (last_i2s_dma_wpos_ + 1) & I2S_DMA_BUFFER_SIZE_MASK;
     }
 
+    // copy new usb to dma
     uint32_t num_input_stereo_samples = len / sizeof(StereoSample_T);
     num_usb += num_input_stereo_samples;
     uint32_t usb_to_dma = num_input_stereo_samples > dma_can_write ? dma_can_write : num_input_stereo_samples;
@@ -284,6 +259,7 @@ void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
         last_i2s_dma_wpos_ = (last_i2s_dma_wpos_ + 1) & I2S_DMA_BUFFER_SIZE_MASK;
     }
 
+    // copy new usb to buffer
     uint32_t can_write = UAC_BUFFER_LEN_MASK - uac_len;
     if (num_input_stereo_samples > can_write) num_input_stereo_samples = can_write;
     while (num_input_stereo_samples--) {
@@ -294,7 +270,6 @@ void Codec_WriteUACBuffer (const uint8_t* ptr, uint32_t len) {
         ++uac_buf_wpos_;
         uac_buf_wpos_ &= UAC_BUFFER_LEN_MASK;
     }
-
 }
 
 uint32_t Codec_GetUACBufferLen (void) {
@@ -350,7 +325,6 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
 
     uint16_t frame = USBHSD->FRAME_NO & 0x7ff;
     if (frame - dma_frequency_meausure_counter_ >= DMA_FREQUENCY_MEAURE_PERIOD) {
-        // 8ms
         dma_frequency_meausure_counter_ = frame;
         uint32_t dma_bck = Codec_GetDMALen();
         float fs = dma_bck * (1000 / (DMA_FREQUENCY_MEAURE_PERIOD)) / 4;
@@ -363,12 +337,9 @@ void Codec_MeasureSampleRateAndReportFeedback(void) {
     }
 
     if (frame - feedback_report_counter_ >= FEEDBACK_REPORT_PERIOD) {
-        // 10ms
         feedback_report_counter_ = frame;
         int32_t uac_len = Codec_GetUACBufferLen();
         int32_t diff = (uac_len - lantency_pos);
-        if (diff > -5 && diff < 0) diff = -5;
-        if (diff > 0 && diff < 5) diff = 5;
         float fb = raw_mesured_dma_sample_rate_ - diff * timeing;
         // limit to +-1khz
         if (fb - sample_rate_ > 1000.0f) fb = sample_rate_ + 1000.0f;

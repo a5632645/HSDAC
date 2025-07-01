@@ -6,8 +6,8 @@
 UACWidget::UACWidget() {
     latency_label_.setText("latency", juce::dontSendNotification);
     addAndMakeVisible(latency_label_);
-    latency_.setRange(0, 1024, 1);
-    latency_.setValue(1024);
+    latency_.setRange(0, 128, 1);
+    latency_.setValue(64);
     addAndMakeVisible(latency_);
     latency_.onValueChange = [this] {
         int latency = static_cast<int>(latency_.getValue());
